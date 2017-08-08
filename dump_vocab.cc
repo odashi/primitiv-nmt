@@ -1,4 +1,5 @@
-#include <fstream>
+#include <iostream>
+#include <stdexcept>
 #include <string>
 
 #include "messages.pb.h"
@@ -24,6 +25,9 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  ::dump_vocab(argv[1]);
+  ::global_try_block([&]() {
+      ::dump_vocab(argv[1]);
+  });
+
   return 0;
 }

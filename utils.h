@@ -2,13 +2,28 @@
 #define MYMT_UTILS_H_
 
 #include <cctype>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <sys/stat.h>
+
+inline void global_try_block(std::function<void()> subroutine) {
+  try {
+    subroutine();
+  } catch (std::exception &ex) {
+    std::cerr << "Caught std::exception." << std::endl;
+    std::cerr << "  what(): " << ex.what() << std::endl;
+    std::exit(1);
+  } catch (...) {
+    std::cerr << "Caught unknown exception." << std::endl;
+    std::exit(1);
+  }
+}
 
 template <class FStreamT>
 inline void open_file(const std::string &path, FStreamT &fs) {
@@ -18,7 +33,7 @@ inline void open_file(const std::string &path, FStreamT &fs) {
   }
 }
 
-void make_directory(const std::string &path) {
+inline void make_directory(const std::string &path) {
   if (::mkdir(path.c_str(), 0755) != 0) {
     std::string errstr = std::strerror(errno);
     throw std::runtime_error("Failed to make directory: " + path + ": " + errstr);

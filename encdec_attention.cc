@@ -74,21 +74,13 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  const string mode = argv[1];
-
-  try {
-    if (mode == "train") ::train_main(argc, argv);
-    else if (mode == "resume") ::resume_main(argc, argv);
-    else if (mode == "test") ::test_main(argc, argv);
-    else throw std::runtime_error("Unknown mode: " + mode);
-  } catch (std::exception &ex) {
-    cerr << "Caught std::exception." << endl;
-    cerr << "  what(): " << ex.what() << endl;
-    exit(1);
-  } catch (...) {
-    cerr << "Caught unknown exception." << endl;
-    exit(1);
-  }
+  ::global_try_block([&]() {
+      const string mode = argv[1];
+      if (mode == "train") ::train_main(argc, argv);
+      else if (mode == "resume") ::resume_main(argc, argv);
+      else if (mode == "test") ::test_main(argc, argv);
+      else throw std::runtime_error("Unknown mode: " + mode);
+  });
 
   return 0;
 }

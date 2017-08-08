@@ -11,22 +11,12 @@
 
 using namespace std;
 
-int main(int argc, char *argv[]) {
-  if (argc != 4) {
-    cerr << "Usage: " << argv[0] << endl
-         << "    [1] (int) Vocabulay size" << endl
-         << "    [2] (file/in) Corpus file" << endl
-         << "    [3] (file/out) Vocabulary file" << endl;
-    exit(1);
-  }
-
-  const unsigned vocab_size = stoi(argv[1]);
-  const string corpus_file = argv[2];
-  const string vocab_file = argv[3];
-
+void make_vocab(
+    const unsigned vocab_size,
+    const string &corpus_file,
+    const string &vocab_file) {
   if (vocab_size < 3) {
-    cerr << "Vocabulary size should be >= 3." << endl;
-    exit(1);
+    throw std::runtime_error("Vocabulary size should be >= 3.");
   }
 
   cout << "Making vocab from " << corpus_file << " ..." << endl;
@@ -54,7 +44,9 @@ int main(int argc, char *argv[]) {
 
   // Sorting
   using freq_t = pair<string, unsigned>;
-  auto cmp = [](const freq_t &a, const freq_t &b) { return a.second < b.second; };
+  auto cmp = [](const freq_t &a, const freq_t &b) {
+    return a.second < b.second;
+  };
   priority_queue<freq_t, vector<freq_t>, decltype(cmp)> q(cmp);
   for (const auto &x : freq) q.push(x);
 
@@ -84,6 +76,23 @@ int main(int argc, char *argv[]) {
 
   ::save_proto(vocab_file, vocab);
   cout << "Saved vocabulary to: " << vocab_file << endl;
+}
+
+int main(int argc, char *argv[]) {
+  if (argc != 4) {
+    cerr << "Usage: " << argv[0] << endl
+         << "    [1] (int) Vocabulay size" << endl
+         << "    [2] (file/in) Corpus file" << endl
+         << "    [3] (file/out) Vocabulary file" << endl;
+    exit(1);
+  }
+
+  ::global_try_block([&]() {
+      const unsigned vocab_size = stoi(argv[1]);
+      const string corpus_file = argv[2];
+      const string vocab_file = argv[3];
+      ::make_vocab(vocab_size, corpus_file, vocab_file);
+  });
 
   return 0;
 }
