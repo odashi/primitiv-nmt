@@ -13,7 +13,6 @@ message Vocabulary {
 
 message Token {
   uint32 id = 1;
-  string surface = 2;
 }
 
 message Sentence {
