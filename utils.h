@@ -25,6 +25,24 @@ void make_directory(const std::string &path) {
   }
 }
 
+template <class ProtoT>
+inline void save_proto(const std::string &path, const ProtoT &proto) {
+  std::ofstream ofs;
+  ::open_file(path, ofs);
+  if (!proto.SerializeToOstream(&ofs)) {
+    throw std::runtime_error("Failed to save proto: " + path);
+  }
+}
+
+template <class ProtoT>
+inline void load_proto(const std::string &path, ProtoT &proto) {
+  std::ifstream ifs;
+  ::open_file(path, ifs);
+  if (!proto.ParseFromIstream(&ifs)) {
+    throw std::runtime_error("Failed to load proto: " + path);
+  }
+}
+
 inline std::string trim(std::string &str) {
   unsigned l = 0;
   while (l < str.size() && std::isspace(str[l])) ++l;

@@ -48,11 +48,8 @@ void train_main(int argc, char *argv[]) {
 
   Vocab src_vocab = Vocab::make(src_train_path, src_vocab_size);
   src_vocab.save(model_dir + "/source.vocab");
-
   Vocab trg_vocab = Vocab::make(trg_train_path, trg_vocab_size);
   trg_vocab.save(model_dir + "/target.vocab");
-
-
 }
 
 void resume_main(int argc, char *argv[]) {
@@ -92,7 +89,6 @@ int main(int argc, char *argv[]) {
     cerr << "Caught unknown exception." << endl;
     exit(1);
   }
-
 
   return 0;
 }

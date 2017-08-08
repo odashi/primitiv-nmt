@@ -2,4 +2,6 @@ data
 model
 
 *.pb.*
+make_vocab
+dump_vocab
 encdec_attention

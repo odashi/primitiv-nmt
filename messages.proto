@@ -1,5 +1,16 @@
 syntax = "proto3";
 
+package mymt.messages;
+
+message TokenStats {
+  string surface = 1;
+  uint32 frequency = 2;
+}
+
+message Vocabulary {
+  repeated TokenStats tokens = 1;
+}
+
 message Token {
   uint32 id = 1;
   string surface = 2;

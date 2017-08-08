@@ -106,7 +106,7 @@ public:
     for (unsigned i = 0; i < itos_.size(); ++i) {
       ofs << itos_[i] << '\t' << freq_[i] << std::endl;
     }
-    
+
     std::cout << "Saved vocab to: " << path << std::endl;
   }
 
