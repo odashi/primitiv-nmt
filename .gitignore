@@ -1,4 +1,5 @@
 data
 model
 
+*.pb.*
 encdec_attention

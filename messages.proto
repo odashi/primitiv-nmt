@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+message Token {
+  uint32 id = 1;
+  string surface = 2;
+}
+
+message Sentence {
+  repeated Token tokens = 1;
+}
+
+message Sample {
+  Sentence source = 1;
+  Sentence target = 2;
+}
+
+message Corpus {
+  repeated Sample samples = 1;
+}

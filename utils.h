@@ -2,16 +2,26 @@
 #define MYMT_UTILS_H_
 
 #include <cctype>
+#include <cstring>
 #include <fstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include <sys/stat.h>
 
 template <class FStreamT>
 inline void open_file(const std::string &path, FStreamT &fs) {
   fs.open(path);
   if (!fs.is_open()) {
     throw std::runtime_error("Failed to open file: " + path);
+  }
+}
+
+void make_directory(const std::string &path) {
+  if (::mkdir(path.c_str(), 0755) != 0) {
+    std::string errstr = std::strerror(errno);
+    throw std::runtime_error("Failed to make directory: " + path + ": " + errstr);
   }
 }
 

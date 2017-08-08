@@ -1,10 +1,8 @@
 // Encoder-decoder with attention.
 
-#include <cstdio>
 #include <iostream>
+#include <stdexcept>
 #include <string>
-
-#include <sys/stat.h>
 
 #include <primitiv/primitiv.h>
 #include <primitiv/primitiv_cuda.h>
@@ -21,11 +19,12 @@ using std::vector;
 void train_main(int argc, char *argv[]) {
   vector<string> options {
     "Model directory",
-    "Train source corpus",
-    "Train target corpus",
-    "Valid source corpus",
-    "Valid target corpus",
-    "Vocabualry size",
+    "Source train corpus",
+    "Target train corpus",
+    "Source validation corpus",
+    "Target validation corpus",
+    "Source vocabualry size",
+    "Target vocabualry size",
   };
 
   if (argc != options.size() + 2) {
@@ -38,22 +37,22 @@ void train_main(int argc, char *argv[]) {
 
   argv += 2;
   const string model_dir = *argv++;
-  const string train_src_path = *argv++;
-  const string train_trg_path = *argv++;
-  const string valid_src_path = *argv++;
-  const string valid_trg_path = *argv++;
-  const unsigned vocab_size = std::stoi(*argv++);
+  const string src_train_path = *argv++;
+  const string trg_train_path = *argv++;
+  const string src_valid_path = *argv++;
+  const string trg_valid_path = *argv++;
+  const unsigned src_vocab_size = std::stoi(*argv++);
+  const unsigned trg_vocab_size = std::stoi(*argv++);
 
-  if (::mkdir(model_dir.c_str(), 0755) != 0) {
-    std::perror("mkdir() failed");
-    exit(1);
-  }
+  ::make_directory(model_dir);
 
-  Vocab src_vocab = Vocab::make(train_src_path, vocab_size);
+  Vocab src_vocab = Vocab::make(src_train_path, src_vocab_size);
   src_vocab.save(model_dir + "/source.vocab");
 
-  Vocab trg_vocab = Vocab::make(train_trg_path, vocab_size);
+  Vocab trg_vocab = Vocab::make(trg_train_path, trg_vocab_size);
   trg_vocab.save(model_dir + "/target.vocab");
+
+
 }
 
 void resume_main(int argc, char *argv[]) {
@@ -80,13 +79,20 @@ int main(int argc, char *argv[]) {
 
   const string mode = argv[1];
 
-  if (mode == "train") ::train_main(argc, argv);
-  else if (mode == "resume") ::resume_main(argc, argv);
-  else if (mode == "test") ::test_main(argc, argv);
-  else {
-    cerr << "unknown mode: " << mode << endl;
+  try {
+    if (mode == "train") ::train_main(argc, argv);
+    else if (mode == "resume") ::resume_main(argc, argv);
+    else if (mode == "test") ::test_main(argc, argv);
+    else throw std::runtime_error("Unknown mode: " + mode);
+  } catch (std::exception &ex) {
+    cerr << "Caught std::exception." << endl;
+    cerr << "  what(): " << ex.what() << endl;
+    exit(1);
+  } catch (...) {
+    cerr << "Caught unknown exception." << endl;
     exit(1);
   }
+
 
   return 0;
 }
