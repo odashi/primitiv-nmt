@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "messages.pb.h"
+#include "primitiv_nmt.pb.h"
 #include "utils.h"
 #include "vocabulary.h"
 
@@ -18,7 +18,7 @@ void make_corpus(
   ::open_file(src_corpus_path, src_ifs);
   ::open_file(trg_corpus_path, trg_ifs);
 
-  mymt::messages::Corpus corpus;
+  primitiv_nmt::proto::Corpus corpus;
 
   string src_line, trg_line;
   unsigned stored = 0, ignored = 0;
@@ -29,51 +29,39 @@ void make_corpus(
         "<bos> " + trg_line + " <eos>");
     const unsigned src_size = src_ids.size() - 2;
     const unsigned trg_size = trg_ids.size() - 2;
-    if (src_size < min_words || src_size > max_words ||
-        trg_size < min_words || trg_size > max_words) {
+    if (src_size >= min_words && src_size <= max_words &&
+        trg_size >= min_words && trg_size <= max_words) {
+      primitiv_nmt::proto::Sample *sample = corpus.add_samples();
+      primitiv_nmt::proto::Sentence *source = sample->mutable_source();
+      for (const unsigned src_id : src_ids) source->add_token_ids(src_id);
+      primitiv_nmt::proto::Sentence *target = sample->mutable_target();
+      for (const unsigned trg_id : trg_ids) target->add_token_ids(trg_id);
+      ++stored;
+    } else {
       ++ignored;
-      continue;
     }
-
-    mymt::messages::Sample *sample = corpus.add_samples();
-    mymt::messages::Sentence *source = sample->mutable_source();
-    for (const unsigned src_id : src_ids) {
-      mymt::messages::Token *token = source->add_tokens();
-      token->set_id(src_id);
+    if ((stored + ignored) % 10000 == 0) {
+      cout << (stored + ignored) << '\r' << flush;
     }
-    mymt::messages::Sentence *target = sample->mutable_target();
-    for (const unsigned trg_id : trg_ids) {
-      mymt::messages::Token *token = target->add_tokens();
-      token->set_id(trg_id);
-    }
-    ++stored;
   }
 
-  cout << "Corpus analyzed:" << endl;
-  cout << "  #stored sentences: " << stored << endl;
-  cout << "  #ignored sentences: " << ignored << endl;
+  cout << "#stored sentences: " << stored << endl;
+  cout << "#ignored sentences: " << ignored << endl;
 
   ::save_proto(out_path, corpus);
   cout << "Corpus saved to: " << out_path << endl;
 }
 
 int main(int argc, char *argv[]) {
-  vector<string> arg_desc {
-    "(int) Minimum #words/sentence",
-    "(int) Maximum #words/sentence",
-    "(file/in) Source corpus",
-    "(file/in) Target corpus",
-    "(file/in) Source vocabulary",
-    "(file/in) Target vocabulary",
-    "(file/out) Corpus file",
-  };
-  if (argc != arg_desc.size() + 1) {
-    cerr << "Usage: " << argv[0] << endl;
-    for (unsigned i = 0; i < arg_desc.size(); ++i) {
-      cerr << "    [" << (i + 1) << "] " << arg_desc[i] << endl;
-    }
-    exit(1);
-  }
+  ::check_args(argc, argv, {
+      "(int) Minimum #words/sentence",
+      "(int) Maximum #words/sentence",
+      "(file/in) Source corpus",
+      "(file/in) Target corpus",
+      "(file/in) Source vocabulary",
+      "(file/in) Target vocabulary",
+      "(file/out) Corpus file",
+  });
 
   ::global_try_block([&]() {
       const unsigned min_words = std::stoi(*++argv);

@@ -1,0 +1,1 @@
+#cmakedefine PRIMITIV_NMT_USE_CUDA
