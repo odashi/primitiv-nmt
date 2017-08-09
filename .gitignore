@@ -1,6 +1,7 @@
 data
 model
 
+a.out
 *.pb.*
 make_vocab
 dump_vocab
