@@ -21,11 +21,11 @@ public:
 };
 
 class MonotoneSampler : public Sampler {
-  const mymt::messages::Corpus &corpus_;
+  const mymt::proto::Corpus &corpus_;
   unsigned pos_;
 
 public:
-  MonotoneSampler(const mymt::messages::Corpus &corpus)
+  MonotoneSampler(const mymt::proto::Corpus &corpus)
     : corpus_(corpus), pos_(0) {}
 
   void reset() override { pos_ = 0; }
@@ -34,13 +34,13 @@ public:
     if (!has_next()) throw std::runtime_error("No next batch.");
     const auto &sample = corpus_.samples()[pos_];
     Batch batch;
-    batch.source.reserve(sample.source().tokens_size());
-    for (const auto &token : sample.source().tokens()) {
-      batch.source.emplace_back(std::vector<unsigned> {token.id()});
+    batch.source.reserve(sample.source().token_ids_size());
+    for (const unsigned tok_id : sample.source().token_ids()) {
+      batch.source.emplace_back(std::vector<unsigned> {tok_id});
     }
-    batch.target.reserve(sample.target().tokens_size());
-    for (const auto &token : sample.target().tokens()) {
-      batch.target.emplace_back(std::vector<unsigned> {token.id()});
+    batch.target.reserve(sample.target().token_ids_size());
+    for (const unsigned tok_id : sample.target().token_ids()) {
+      batch.target.emplace_back(std::vector<unsigned> {tok_id});
     }
     ++pos_;
     return batch;
@@ -50,7 +50,7 @@ public:
 };
 
 class RandomBatchSampler : public Sampler {
-  const mymt::messages::Corpus &corpus_;
+  const mymt::proto::Corpus &corpus_;
   unsigned bs_;
   std::mt19937 rng_;
   std::vector<unsigned> ids_;
@@ -59,7 +59,7 @@ class RandomBatchSampler : public Sampler {
 
 public:
   RandomBatchSampler(
-      const mymt::messages::Corpus &corpus, unsigned batch_size, unsigned seed)
+      const mymt::proto::Corpus &corpus, unsigned batch_size, unsigned seed)
     : corpus_(corpus)
     , bs_(batch_size)
     , rng_(seed)
@@ -75,10 +75,10 @@ public:
     std::sort(ids_.begin(), ids_.end(), [&](unsigned a, unsigned b) {
         const auto &sa = corpus_.samples()[a];
         const auto &sb = corpus_.samples()[b];
-        const unsigned sa_src = sa.source().tokens_size();
-        const unsigned sb_src = sb.source().tokens_size();
-        const unsigned sa_trg = sa.target().tokens_size();
-        const unsigned sb_trg = sb.target().tokens_size();
+        const unsigned sa_src = sa.source().token_ids_size();
+        const unsigned sb_src = sb.source().token_ids_size();
+        const unsigned sa_trg = sa.target().token_ids_size();
+        const unsigned sb_trg = sb.target().token_ids_size();
         if (sa_src == sb_src) return sa_trg < sb_trg;
         else return sa_src < sb_src;
     });
@@ -86,13 +86,13 @@ public:
     unsigned left = 0;
     while (left < num_total_samples) {
       const auto &left_sample = corpus_.samples()[ids_[left]];
-      const unsigned left_src = left_sample.source().tokens_size();
-      const unsigned left_trg = left_sample.target().tokens_size();
+      const unsigned left_src = left_sample.source().token_ids_size();
+      const unsigned left_trg = left_sample.target().token_ids_size();
       unsigned right = left + 1;
       while (right < num_total_samples) {
         const auto &right_sample = corpus_.samples()[ids_[right]];
-        const unsigned right_src = right_sample.source().tokens_size();
-        const unsigned right_trg = right_sample.target().tokens_size();
+        const unsigned right_src = right_sample.source().token_ids_size();
+        const unsigned right_trg = right_sample.target().token_ids_size();
         if (right_src != left_src || right_trg != left_trg) break;
         ++right;
       }
@@ -118,8 +118,8 @@ public:
     const unsigned second = ranges_[pos_].second;
     const unsigned batch_size = second - first;
     const auto &first_sample = corpus_.samples()[ids_[first]];
-    const unsigned src_len = first_sample.source().tokens_size();
-    const unsigned trg_len = first_sample.target().tokens_size();
+    const unsigned src_len = first_sample.source().token_ids_size();
+    const unsigned trg_len = first_sample.target().token_ids_size();
     Batch batch {
       std::vector<std::vector<unsigned>>(
           src_len, std::vector<unsigned>(batch_size)),
@@ -128,13 +128,13 @@ public:
     };
     for (unsigned i = 0; i < batch_size; ++i) {
       const auto &sample = corpus_.samples()[ids_[i + first]];
-      const auto &src_tokens = sample.source().tokens();
+      const auto &src_token_ids = sample.source().token_ids();
       for (unsigned j = 0; j < src_len; ++j) {
-        batch.source[j][i] = src_tokens[j].id();
+        batch.source[j][i] = src_token_ids[j];
       }
-      const auto &trg_tokens = sample.target().tokens();
+      const auto &trg_token_ids = sample.target().token_ids();
       for (unsigned j = 0; j < trg_len; ++j) {
-        batch.target[j][i] = trg_tokens[j].id();
+        batch.target[j][i] = trg_token_ids[j];
       }
     }
     ++pos_;

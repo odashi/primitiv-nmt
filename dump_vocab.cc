@@ -8,11 +8,11 @@
 using namespace std;
 
 void dump_vocab(const string &path) {
-  mymt::messages::Vocabulary vocab;
+  mymt::proto::Vocabulary vocab;
   ::load_proto(path, vocab);
 
   unsigned id = 0;
-  for (const mymt::messages::TokenStats &token : vocab.tokens()) {
+  for (const mymt::proto::TokenStats &token : vocab.tokens()) {
     cout << id++ << '\t' << token.surface() << '\t'
          << token.frequency() << endl;
   }

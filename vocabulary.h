@@ -19,7 +19,7 @@ class Vocabulary {
 
 public:
   Vocabulary(const std::string &path) {
-    mymt::messages::Vocabulary vocab_data;
+    mymt::proto::Vocabulary vocab_data;
     ::load_proto(path, vocab_data);
     for (const auto &stat : vocab_data.tokens()) {
       stoi_.emplace(stat.surface(), stoi_.size());

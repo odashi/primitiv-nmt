@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package mymt.messages;
+package mymt.proto;
 
 message TokenStats {
   string surface = 1;
@@ -11,12 +11,12 @@ message Vocabulary {
   repeated TokenStats tokens = 1;
 }
 
-message Token {
-  uint32 id = 1;
-}
+//message Token {
+//  uint32 id = 1;
+//}
 
 message Sentence {
-  repeated Token tokens = 1;
+  repeated uint32 token_ids = 1;
 }
 
 message Sample {

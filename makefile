@@ -11,7 +11,7 @@ make_corpus_SRCS=make_corpus.cc ${base_PB_CCS}
 dump_corpus_SRCS=dump_corpus.cc ${base_PB_CCS}
 encdec_attention_SRCS=encdec_attention.cc ${base_PB_CCS}
 
-all:
+all: make_vocab dump_vocab make_corpus dump_corpus
 
 base_pbs: ${base_PROTOS}
 	protoc --cpp_out=. ${base_PROTOS}
