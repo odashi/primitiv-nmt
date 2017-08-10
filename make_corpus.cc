@@ -53,22 +53,15 @@ void make_corpus(
 }
 
 int main(int argc, char *argv[]) {
-  vector<string> arg_desc {
-    "(int) Minimum #words/sentence",
-    "(int) Maximum #words/sentence",
-    "(file/in) Source corpus",
-    "(file/in) Target corpus",
-    "(file/in) Source vocabulary",
-    "(file/in) Target vocabulary",
-    "(file/out) Corpus file",
-  };
-  if (argc != arg_desc.size() + 1) {
-    cerr << "Usage: " << argv[0] << endl;
-    for (unsigned i = 0; i < arg_desc.size(); ++i) {
-      cerr << "    [" << (i + 1) << "] " << arg_desc[i] << endl;
-    }
-    exit(1);
-  }
+  ::check_args(argc, argv, {
+      "(int) Minimum #words/sentence",
+      "(int) Maximum #words/sentence",
+      "(file/in) Source corpus",
+      "(file/in) Target corpus",
+      "(file/in) Source vocabulary",
+      "(file/in) Target vocabulary",
+      "(file/out) Corpus file",
+  });
 
   ::global_try_block([&]() {
       const unsigned min_words = std::stoi(*++argv);

@@ -12,6 +12,17 @@
 
 #include <sys/stat.h>
 
+inline void check_args(
+    int argc, char *argv[], const std::vector<std::string> &desc) {
+  if (static_cast<unsigned>(argc) != desc.size() + 1) {
+    std::cerr << "Usage: " << argv[0] << std::endl;
+    for (unsigned i = 0; i < desc.size(); ++i) {
+      std::cerr << "    [" << (i + 1) << "] " << desc[i] << std::endl;
+    }
+    std::exit(1);
+  }
+}
+
 inline void global_try_block(std::function<void()> subroutine) {
   try {
     subroutine();

@@ -12,7 +12,7 @@ using namespace std;
 void dump_corpus(
     const mymt::proto::Corpus &corpus,
     const ::Vocabulary &src_vocab, const ::Vocabulary &trg_vocab) {
-  for (unsigned i = 0; i < corpus.samples_size(); ++i) {
+  for (unsigned i = 0; i < static_cast<unsigned>(corpus.samples_size()); ++i) {
     const auto &sample = corpus.samples()[i];
     cout << "sentence " << i << ':' << endl;
     cout << "  source:" << endl;
@@ -35,13 +35,11 @@ void dump_corpus(
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 4) {
-    cerr << "Usage: " << argv[0] << endl
-         << "    [1] (file/in) Corpus file" << endl
-         << "    [2] (file/in) Source vocabulary" << endl
-         << "    [3] (file/in) Target vocabulary" << endl;
-    exit(1);
-  }
+  ::check_args(argc, argv, {
+      "(file/in) Corpus file",
+      "(file/in) Source vocabulary file",
+      "(file/in) Target vocabulary file",
+  });
 
   ::global_try_block([&]() {
       mymt::proto::Corpus corpus;

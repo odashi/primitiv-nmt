@@ -19,11 +19,9 @@ void dump_vocab(const string &path) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    cerr << "Usage: " << argv[0] << endl
-         << "    [1] (file/in) Vocabulary file" << endl;
-    exit(1);
-  }
+  ::check_args(argc, argv, {
+      "(file/in) Vocabulary file",
+  });
 
   ::global_try_block([&]() {
       ::dump_vocab(argv[1]);

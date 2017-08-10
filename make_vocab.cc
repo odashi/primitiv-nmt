@@ -83,13 +83,11 @@ void make_vocab(
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 4) {
-    cerr << "Usage: " << argv[0] << endl
-         << "    [1] (int) Vocabulay size" << endl
-         << "    [2] (file/in) Corpus file" << endl
-         << "    [3] (file/out) Vocabulary file" << endl;
-    exit(1);
-  }
+  ::check_args(argc, argv, {
+      "(int) Vocabulary size",
+      "(file/in) Corpus text file",
+      "(file/out) Vocabulary file",
+  });
 
   ::global_try_block([&]() {
       const unsigned vocab_size = stoi(argv[1]);

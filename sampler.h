@@ -46,7 +46,9 @@ public:
     return batch;
   }
 
-  bool has_next() const override { return pos_ < corpus_.samples_size(); }
+  bool has_next() const override {
+    return pos_ < static_cast<unsigned>(corpus_.samples_size());
+  }
 };
 
 class RandomBatchSampler : public Sampler {

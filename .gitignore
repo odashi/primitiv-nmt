@@ -7,4 +7,4 @@ make_vocab
 dump_vocab
 make_corpus
 dump_corpus
-encdec_attention
+train_encdec
