@@ -77,7 +77,7 @@ public:
     namespace F = primitiv::node_ops;
     const primitiv::Node u = F::matmul(wxh_, x) + F::matmul(whh_, h_) + bh_;
     const primitiv::Node i = F::sigmoid(F::slice(u, 0, 0, no_));
-    const primitiv::Node f = F::sigmoid(F::slice(u, 0, no_, 2 * no_));
+    const primitiv::Node f = F::sigmoid(1 + F::slice(u, 0, no_, 2 * no_));
     const primitiv::Node o = F::sigmoid(F::slice(u, 0, 2 * no_, 3 * no_));
     const primitiv::Node j = F::tanh(F::slice(u, 0, 3 * no_, 4 * no_));
     c_ = i * j + f * c_;

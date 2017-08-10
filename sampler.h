@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "messages.pb.h"
+#include "mymt.pb.h"
 
 struct Batch {
   std::vector<std::vector<unsigned>> source;

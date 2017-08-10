@@ -2,7 +2,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "messages.pb.h"
+#include "mymt.pb.h"
 #include "utils.h"
 
 using namespace std;

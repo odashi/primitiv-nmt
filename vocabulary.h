@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "messages.pb.h"
+#include "mymt.pb.h"
 #include "utils.h"
 
 class Vocabulary {

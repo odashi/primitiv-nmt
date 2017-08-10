@@ -3,6 +3,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <functional>
@@ -102,6 +103,12 @@ inline unsigned argmax(const std::vector<float> &scores) {
     }
   }
   return max_id;
+}
+
+inline std::string get_epoch_str(unsigned epoch) {
+  char buf[8];
+  std::sprintf(buf, "%04u", epoch);
+  return buf;
 }
 
 #endif  // MYMT_UTILS_H_

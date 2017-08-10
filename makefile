@@ -1,8 +1,8 @@
 CFLAGS=-std=c++11 -Ofast -Wall -Werror
 
 base_HDRS=utils.h vocabulary.h
-base_PROTOS=messages.proto
-base_PB_CCS=messages.pb.cc
+base_PROTOS=mymt.proto
+base_PB_CCS=mymt.pb.cc
 base_LIBS=-lprimitiv -lprotobuf
 
 make_vocab_SRCS=make_vocab.cc ${base_PB_CCS}
