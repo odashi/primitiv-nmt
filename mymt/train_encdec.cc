@@ -5,7 +5,9 @@
 #include <vector>
 
 #include <primitiv/primitiv.h>
+#ifdef USE_CUDA
 #include <primitiv/primitiv_cuda.h>
+#endif
 
 #include "lstm.h"
 #include "mymt.pb.h"
@@ -233,7 +235,11 @@ int main(int argc, char *argv[]) {
       cout << "done." << endl;
 
       cout << "Initializing devices ... " << flush;
+#ifdef USE_CUDA
       primitiv::CUDADevice dev(0);
+#else
+      primitiv::CPUDevice dev;
+#endif
       primitiv::Device::set_default_device(dev);
       cout << "done." << endl;
 
