@@ -2,6 +2,7 @@ protobuf_generate_cpp(mymt_proto_SRCS mymt_proto_HDRS mymt.proto)
 
 set(mymt_all_HDRS
   ${mymt_proto_HDRS}
+  encoder_decoder.h
   lstm.h
   sampler.h
   utils.h
