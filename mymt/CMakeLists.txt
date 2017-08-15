@@ -5,6 +5,7 @@ set(mymt_all_HDRS
   encoder_decoder.h
   lstm.h
   sampler.h
+  nmt_utils.h
   utils.h
   vocabulary.h
 )

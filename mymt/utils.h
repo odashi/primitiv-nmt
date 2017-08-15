@@ -52,6 +52,21 @@ inline void make_directory(const std::string &path) {
   }
 }
 
+inline void save_float(const std::string &path, float score) {
+  std::ofstream ofs;
+  ::open_file(path, ofs);
+  char buf[16];
+  ::sprintf(buf, "%.8e", score);
+  ofs << buf << std::endl;
+}
+
+inline void save_strings(
+    const std::string &path, const std::vector<std::string> &strs) {
+  std::ofstream ofs;
+  ::open_file(path, ofs);
+  for (const std::string &str : strs) ofs << str << std::endl;
+}
+
 template <class ProtoT>
 inline void save_proto(const std::string &path, const ProtoT &proto) {
   std::ofstream ofs;

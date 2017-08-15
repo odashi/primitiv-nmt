@@ -18,6 +18,7 @@ public:
   virtual void reset() = 0;
   virtual Batch next() = 0;
   virtual bool has_next() const = 0;
+  virtual unsigned num_sentences() const = 0;
 };
 
 class MonotoneSampler : public Sampler {
@@ -49,6 +50,8 @@ public:
   bool has_next() const override {
     return pos_ < static_cast<unsigned>(corpus_.samples_size());
   }
+
+  unsigned num_sentences() const override { return corpus_.samples_size(); }
 };
 
 class RandomBatchSampler : public Sampler {
@@ -68,7 +71,6 @@ public:
     , ids_(corpus.samples_size())
     , pos_(0) {
       std::iota(ids_.begin(), ids_.end(), 0);
-      reset();
     }
 
   void reset() override {
@@ -98,13 +100,13 @@ public:
         if (right_src != left_src || right_trg != left_trg) break;
         ++right;
       }
-      const unsigned num_samples = right - left;
-      const unsigned num_batches = (num_samples + bs_ - 1) / bs_;
-      const unsigned num_samples_per_batch = num_samples / num_batches;
-      const unsigned carry = num_samples % num_batches;
+      const unsigned num_sents = right - left;
+      const unsigned num_batches = (num_sents + bs_ - 1) / bs_;
+      const unsigned num_sents_per_batch = num_sents / num_batches;
+      const unsigned carry = num_sents % num_batches;
       unsigned first = left;
       for (unsigned i = 0; i < num_batches; ++i) {
-        const unsigned second = first + num_samples_per_batch + (i < carry);
+        const unsigned second = first + num_sents_per_batch + (i < carry);
         ranges_.emplace_back(first, second);
         first = second;
       }
@@ -144,6 +146,8 @@ public:
   }
 
   bool has_next() const override { return pos_ < ranges_.size(); }
+
+  unsigned num_sentences() const override { return corpus_.samples_size(); }
 };
 
 #endif  // MYMT_SAMPLER_H_
