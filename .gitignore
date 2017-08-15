@@ -1,6 +1,7 @@
 build
 data
 model
+test
 
 a.out
 *.pb.*

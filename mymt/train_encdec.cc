@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <iostream>
 #include <fstream>
 #include <random>
@@ -5,7 +7,7 @@
 #include <vector>
 
 #include <primitiv/primitiv.h>
-#ifdef USE_CUDA
+#ifdef MYMT_USE_CUDA
 #include <primitiv/primitiv_cuda.h>
 #endif
 
@@ -18,7 +20,7 @@
 using namespace std;
 
 class EncoderDecoder {
-  std::string name_;
+  string name_;
   unsigned src_vocab_size_, trg_vocab_size_;
   unsigned embed_size_, hidden_size_;
   float dropout_rate_;
@@ -27,7 +29,7 @@ class EncoderDecoder {
   primitiv::Node dec_lxe_, dec_why_, dec_by_;
 
 public:
-  EncoderDecoder(const std::string &name,
+  EncoderDecoder(const string &name,
       unsigned src_vocab_size, unsigned trg_vocab_size,
       unsigned embed_size, unsigned hidden_size,
       float dropout_rate)
@@ -49,7 +51,7 @@ public:
     , dec_rnn_(name_ + ".dec.rnn", embed_size_, hidden_size_) {}
 
   // Loads all parameters.
-  EncoderDecoder(const std::string &name, const std::string &prefix)
+  EncoderDecoder(const string &name, const string &prefix)
     : name_(name)
     , enc_plxe_(primitiv::Parameter::load(prefix + name_ + ".enc.lxe"))
     , dec_plxe_(primitiv::Parameter::load(prefix + name_ + ".dec.lxe"))
@@ -57,7 +59,7 @@ public:
     , dec_pby_(primitiv::Parameter::load(prefix + name_ + ".dec.by"))
     , enc_rnn_(name_ + ".enc.rnn", prefix)
     , dec_rnn_(name_ + ".dec.rnn", prefix) {
-      std::ifstream ifs;
+      ifstream ifs;
       ::open_file(prefix + name_ + ".config", ifs);
       ifs >> src_vocab_size_;
       ifs >> trg_vocab_size_;
@@ -67,14 +69,14 @@ public:
     }
 
   // Saves all parameters.
-  void save(const std::string &prefix) const {
+  void save(const string &prefix) const {
     enc_plxe_.save(prefix + enc_plxe_.name());
     dec_plxe_.save(prefix + dec_plxe_.name());
     dec_pwhy_.save(prefix + dec_pwhy_.name());
     dec_pby_.save(prefix + dec_pby_.name());
     enc_rnn_.save(prefix);
     dec_rnn_.save(prefix);
-    std::ofstream ofs;
+    ofstream ofs;
     ::open_file(prefix + name_ + ".config", ofs);
     ofs << src_vocab_size_ << endl;
     ofs << trg_vocab_size_ << endl;
@@ -95,7 +97,7 @@ public:
 
   // Encodes source batch and initializes decoder states.
   void encode(
-      const std::vector<std::vector<unsigned>> &src_batch, bool train) {
+      const vector<vector<unsigned>> &src_batch, bool train) {
     namespace F = primitiv::node_ops;
     using primitiv::Node;
 
@@ -117,7 +119,7 @@ public:
 
   // One-step decoding
   primitiv::Node decode_step(
-      const std::vector<unsigned> &trg_words, bool train) {
+      const vector<unsigned> &trg_words, bool train) {
     namespace F = primitiv::node_ops;
     using primitiv::Node;
 
@@ -130,11 +132,11 @@ public:
 
   // Calculates the loss function.
   primitiv::Node loss(
-      const std::vector<std::vector<unsigned>> &trg_batch, bool train) {
+      const vector<vector<unsigned>> &trg_batch, bool train) {
     namespace F = primitiv::node_ops;
     using primitiv::Node;
 
-    std::vector<Node> losses;
+    vector<Node> losses;
     for (unsigned i = 0; i < trg_batch.size() - 1; ++i) {
       Node y = decode_step(trg_batch[i], train);
       losses.emplace_back(F::softmax_cross_entropy(y, trg_batch[i + 1], 0));
@@ -146,7 +148,7 @@ public:
 float process(
     ::EncoderDecoder &model, primitiv::Trainer &trainer,
     const mymt::proto::Corpus &corpus, unsigned batch_size, bool train) {
-  std::random_device rd;
+  random_device rd;
   ::RandomBatchSampler sampler(corpus, batch_size, rd());
   unsigned num_sents = 0;
   unsigned num_labels = 0;
@@ -176,25 +178,62 @@ float process(
   return accum_loss / num_labels;
 }
 
-void save_score(const std::string &path, float score) {
-  std::ofstream ofs;
+vector<string> infer(
+    ::EncoderDecoder &model, const mymt::proto::Corpus &corpus,
+    ::Vocabulary trg_vocab) {
+  const unsigned bos_id = trg_vocab.stoi("<bos>");
+  const unsigned eos_id = trg_vocab.stoi("<eos>");
+  vector<string> hyps;
+
+  for (const auto &sample : corpus.samples()) {
+    // Make source batch
+    const auto &src_ids = sample.source().token_ids();
+    vector<vector<unsigned>> src_batch(src_ids.size(), vector<unsigned>(1));
+    for (int i = 0; i < src_ids.size(); ++i) src_batch[i][0] = src_ids[i];
+
+    // Initialize the model
+    primitiv::Graph g;
+    primitiv::Graph::set_default_graph(g);
+    model.encode(src_batch, false);
+    vector<unsigned> trg_ids {bos_id};
+
+    // Decode
+    while (trg_ids.back() != eos_id) {
+      const vector<unsigned> prev {trg_ids.back()};
+      const primitiv::Node scores = model.decode_step(prev, false);
+      const unsigned next = ::argmax(g.forward(scores).to_vector());
+      trg_ids.emplace_back(next);
+
+      if (trg_ids.size() == 64 + 1) {
+        trg_ids.emplace_back(eos_id);
+        break;
+      }
+    }
+
+    // Make resulting string.
+    string hyp;
+    for (unsigned i = 1; i < trg_ids.size() - 1; ++i) {
+      if (i > 1) hyp += ' ';
+      hyp += trg_vocab.itos(trg_ids[i]);
+    }
+    hyps.emplace_back(move(hyp));
+  }
+
+  return hyps;
+}
+
+void save_score(const string &path, float score) {
+  ofstream ofs;
   ::open_file(path, ofs);
   char buf[16];
   ::sprintf(buf, "%.8e", score);
   ofs << buf << endl;
 }
 
-void save_model(
-    unsigned epoch, const std::string &model_dir,
-    const ::EncoderDecoder &model,
-    const primitiv::Trainer &trainer,
-    float train_avg_loss, float dev_avg_loss) {
-  const std::string subdir = model_dir + "/" + ::get_epoch_str(epoch);
-  ::make_directory(subdir);
-  model.save(subdir + "/model.");
-  trainer.save(subdir + "/trainer");
-  ::save_score(subdir + "/train.avg_loss", train_avg_loss);
-  ::save_score(subdir + "/dev.avg_loss", dev_avg_loss);
+void save_hyps(const string &path, const vector<string> &hyps) {
+  ofstream ofs;
+  ::open_file(path, ofs);
+  for (const string &hyp : hyps) ofs << hyp << endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -235,7 +274,7 @@ int main(int argc, char *argv[]) {
       cout << "done." << endl;
 
       cout << "Initializing devices ... " << flush;
-#ifdef USE_CUDA
+#ifdef MYMT_USE_CUDA
       primitiv::CUDADevice dev(0);
 #else
       primitiv::CPUDevice dev;
@@ -257,21 +296,33 @@ int main(int argc, char *argv[]) {
       cout << "done." << endl;
 
       cout << "Saving initial model ... " << flush;
-      ::save_model(0, model_dir, model, trainer, 1e10, 1e10);
+      {
+        const string subdir = model_dir + "/" + ::get_epoch_str(0);
+        ::make_directory(subdir);
+        model.save(subdir + "/model.");
+        trainer.save(subdir + "/trainer");
+      }
       cout << "done." << endl;
 
       cout << "Start training." << endl;
       for (unsigned epoch = 1; epoch <= num_epochs; ++epoch) {
         cout << "Epoch " << epoch << ':' << endl;
-        float train_avg_loss = ::process(
-            model, trainer, train_corpus, batch_size, true);
+        float train_avg_loss = ::process(model, trainer, train_corpus, batch_size, true);
         cout << "  Train loss: " << train_avg_loss << endl;
-        float dev_avg_loss = ::process(
-            model, trainer, dev_corpus, 1, false);
+        float dev_avg_loss = ::process(model, trainer, dev_corpus, 1, false);
         cout << "  Dev loss: " << dev_avg_loss << endl;
+        cout << "  Generating dev hyps ... " << flush;
+        const vector<string> dev_hyps = ::infer(model, dev_corpus, trg_vocab);
+        cout << "done." << endl;
+
         cout << "  Saving current model ... " << flush;
-        ::save_model(
-            epoch, model_dir, model, trainer, train_avg_loss, dev_avg_loss);
+        const string subdir = model_dir + "/" + ::get_epoch_str(epoch);
+        ::make_directory(subdir);
+        model.save(subdir + "/model.");
+        trainer.save(subdir + "/trainer");
+        ::save_score(subdir + "/train.avg_loss", train_avg_loss);
+        ::save_score(subdir + "/dev.avg_loss", dev_avg_loss);
+        ::save_hyps(subdir + "/dev.hyp", dev_hyps);
         cout << "done." << endl;
       }
       cout << "Finished." << endl;
