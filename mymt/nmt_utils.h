@@ -100,24 +100,24 @@ inline std::vector<std::string> infer_corpus(
   return hyps;
 }
 
-inline void save_all(const std::string &model_dir, unsigned epoch,
+inline void save_all(
+    const std::string &model_dir,
     const ::EncoderDecoder &model,
     const primitiv::Trainer &trainer,
     float train_avg_loss,
     float dev_avg_loss,
     const std::vector<std::string> &dev_hyps) {
-  const std::string subdir = model_dir + "/" + ::get_epoch_str(epoch);
-  ::make_directory(subdir);
-  model.save(subdir + "/model.");
-  trainer.save(subdir + "/trainer");
-  ::save_float(subdir + "/train.avg_loss", train_avg_loss);
-  ::save_float(subdir + "/dev.avg_loss", dev_avg_loss);
-  ::save_strings(subdir + "/dev.hyp", dev_hyps);
+  ::make_directory(model_dir);
+  model.save(model_dir + "/model.");
+  trainer.save(model_dir + "/trainer");
+  ::save_float(model_dir + "/train.avg_loss", train_avg_loss);
+  ::save_float(model_dir + "/dev.avg_loss", dev_avg_loss);
+  ::save_strings(model_dir + "/dev.hyp", dev_hyps);
 }
 
 inline void train_epoch(
     const std::string &model_dir, unsigned epoch,
-    ::EncoderDecoder &model, const ::Vocabulary trg_vocab,
+    ::EncoderDecoder &model, const ::Vocabulary &trg_vocab,
     primitiv::Trainer &trainer,
     ::Sampler &train_sampler, ::Sampler &dev_sampler) {
   std::cout << "Epoch " << epoch << ':' << std::endl;
@@ -132,7 +132,8 @@ inline void train_epoch(
 
   std::cout << "  Saving current model ... " << std::flush;
   ::save_all(
-      model_dir, epoch, model, trainer, train_avg_loss, dev_avg_loss, dev_hyps);
+      ::get_model_dir(model_dir, epoch), model, trainer,
+      train_avg_loss, dev_avg_loss, dev_hyps);
   std::cout << "done." << std::endl;
 }
 

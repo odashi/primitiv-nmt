@@ -52,11 +52,25 @@ inline void make_directory(const std::string &path) {
   }
 }
 
-inline void save_float(const std::string &path, float score) {
+inline void save_unsigned(const std::string &path, float value) {
+  std::ofstream ofs;
+  ::open_file(path, ofs);
+  ofs << value << std::endl;
+}
+
+inline unsigned load_unsigned(const std::string &path) {
+  std::ifstream ifs;
+  ::open_file(path, ifs);
+  unsigned value;
+  ifs >> value;
+  return value;
+}
+
+inline void save_float(const std::string &path, float value) {
   std::ofstream ofs;
   ::open_file(path, ofs);
   char buf[16];
-  ::sprintf(buf, "%.8e", score);
+  ::sprintf(buf, "%.8e", value);
   ofs << buf << std::endl;
 }
 
@@ -120,10 +134,10 @@ inline unsigned argmax(const std::vector<float> &scores) {
   return max_id;
 }
 
-inline std::string get_epoch_str(unsigned epoch) {
+inline std::string get_model_dir(const std::string &prefix, unsigned epoch) {
   char buf[8];
   std::sprintf(buf, "%04u", epoch);
-  return buf;
+  return prefix + '/' + buf;
 }
 
 #endif  // MYMT_UTILS_H_

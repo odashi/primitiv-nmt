@@ -25,10 +25,7 @@ int main(int argc, char *argv[]) {
       "(file/in) Source vocabulary file",
       "(file/in) Target vocabulary file",
       "(dir/out) Model directory",
-      "(int) Embedding size",
-      "(int) Hidden size",
-      "(float) dropout_rate",
-      "(int) Batch size",
+      "(int) Last epoch",
       "(int) Number of epochs",
   });
 
@@ -38,11 +35,10 @@ int main(int argc, char *argv[]) {
       const std::string src_vocab_file = *++argv;
       const std::string trg_vocab_file = *++argv;
       const std::string model_dir = *++argv;
-      const unsigned embed_size = std::stoi(*++argv);
-      const unsigned hidden_size = std::stoi(*++argv);
-      const float dropout_rate = std::stof(*++argv);
-      const unsigned batch_size = std::stoi(*++argv);
+      const unsigned last_epoch = std::stoi(*++argv);
       const unsigned num_epochs = std::stoi(*++argv);
+
+      const unsigned batch_size = ::load_unsigned(model_dir + "/batch_size");
 
       std::cout << "Loading vocabularies ... " << std::flush;
       const ::Vocabulary src_vocab(src_vocab_file);
@@ -67,32 +63,23 @@ int main(int argc, char *argv[]) {
       primitiv::Device::set_default_device(dev);
       std::cout << "done." << std::endl;
 
-      std::cout << "Initializing model ... " << std::flush;
-      ::EncoderDecoder model(
-          "encdec", src_vocab.size(), trg_vocab.size(),
-          embed_size, hidden_size, dropout_rate);
+      const std::string last_dir = ::get_model_dir(model_dir, last_epoch);
+
+      std::cout << "Loading model ... " << std::flush;
+      ::EncoderDecoder model("encdec", last_dir + "/model.");
       std::cout << "done." << std::endl;
 
-      std::cout << "Initializing trainer ... " << std::flush;
-      primitiv::trainers::Adam trainer;
-      trainer.set_weight_decay(1e-6);
-      trainer.set_gradient_clipping(5);
-      model.register_training(trainer);
+      std::cout << "Loading trainer ... " << std::flush;
+      std::shared_ptr<primitiv::Trainer> trainer = primitiv::Trainer::load(
+          last_dir + "/trainer");
+      model.register_training(*trainer);
       std::cout << "done." << std::endl;
 
-      std::cout << "Saving initial model ... " << std::flush;
-      ::make_directory(model_dir);
-      ::save_unsigned(model_dir + "/batch_size", batch_size);
-      ::save_all(
-          ::get_model_dir(model_dir, 0), model, trainer,
-          1e10, 1e10, std::vector<std::string>(dev_corpus.samples_size()));
-      std::cout << "done." << std::endl;
-
-      std::cout << "Start training." << std::endl;
+      std::cout << "Restart training." << std::endl;
       for (unsigned epoch = 1; epoch <= num_epochs; ++epoch) {
         ::train_epoch(
-            model_dir, epoch,
-            model, trg_vocab, trainer, train_sampler, dev_sampler);
+            model_dir, epoch + last_epoch,
+            model, trg_vocab, *trainer, train_sampler, dev_sampler);
       }
       std::cout << "Finished." << std::endl;
   });

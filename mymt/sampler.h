@@ -14,7 +14,11 @@ struct Batch {
 };
 
 class Sampler {
+  Sampler(const Sampler &) = delete;
+  Sampler &operator=(const Sampler &) = delete;
+
 public:
+  Sampler() = default;
   virtual void reset() = 0;
   virtual Batch next() = 0;
   virtual bool has_next() const = 0;
@@ -24,6 +28,9 @@ public:
 class MonotoneSampler : public Sampler {
   const mymt::proto::Corpus &corpus_;
   unsigned pos_;
+
+  MonotoneSampler(const MonotoneSampler &) = delete;
+  MonotoneSampler &operator=(const MonotoneSampler &) = delete;
 
 public:
   MonotoneSampler(const mymt::proto::Corpus &corpus)
@@ -61,6 +68,9 @@ class RandomBatchSampler : public Sampler {
   std::vector<unsigned> ids_;
   std::vector<std::pair<unsigned, unsigned>> ranges_;
   unsigned pos_;
+
+  RandomBatchSampler(const RandomBatchSampler &) = delete;
+  RandomBatchSampler &operator=(const RandomBatchSampler &) = delete;
 
 public:
   RandomBatchSampler(

@@ -20,4 +20,4 @@ mymt_compile(dump_vocab)
 mymt_compile(make_corpus)
 mymt_compile(dump_corpus)
 mymt_compile(train_encdec)
-
+mymt_compile(resume_encdec)

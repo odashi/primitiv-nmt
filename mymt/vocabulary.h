@@ -17,6 +17,9 @@ class Vocabulary {
   std::vector<std::string> itos_;
   std::vector<unsigned> freq_;
 
+  Vocabulary(const Vocabulary &) = delete;
+  Vocabulary &operator=(const Vocabulary &) = delete;
+
 public:
   Vocabulary(const std::string &path) {
     mymt::proto::Vocabulary vocab_data;

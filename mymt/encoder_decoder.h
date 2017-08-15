@@ -19,6 +19,9 @@ class EncoderDecoder {
   ::LSTM enc_rnn_, dec_rnn_;
   primitiv::Node dec_lxe_, dec_why_, dec_by_;
 
+  EncoderDecoder(const EncoderDecoder &) = delete;
+  EncoderDecoder &operator=(const EncoderDecoder &) = delete;
+
 public:
   EncoderDecoder(const std::string &name,
       unsigned src_vocab_size, unsigned trg_vocab_size,
