@@ -10,7 +10,7 @@
 #include <primitiv/primitiv_cuda.h>
 #endif
 
-#include "encoder_decoder.h"
+#include "attention_encoder_decoder.h"
 #include "nmt_utils.h"
 #include "lstm.h"
 #include "mymt.pb.h"
@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
       const std::string last_dir = ::get_model_dir(model_dir, last_epoch);
 
       std::cout << "Loading model ... " << std::flush;
-      ::EncoderDecoder model("encdec", last_dir + "/model.");
+      ::AttentionEncoderDecoder model("encdec", last_dir + "/model.");
       std::cout << "done." << std::endl;
 
       std::cout << "Loading trainer ... " << std::flush;

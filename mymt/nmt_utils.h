@@ -7,13 +7,13 @@
 
 #include <primitiv/primitiv.h>
 
-#include "encoder_decoder.h"
+#include "attention_encoder_decoder.h"
 #include "sampler.h"
 #include "utils.h"
 #include "vocabulary.h"
 
 inline float process(
-    ::EncoderDecoder &model, primitiv::Trainer &trainer,
+    ::AttentionEncoderDecoder &model, primitiv::Trainer &trainer,
     ::Sampler &sampler, bool train) {
   unsigned num_sents = 0;
   unsigned num_labels = 0;
@@ -46,7 +46,7 @@ inline float process(
 }
 
 inline std::string infer_sentence(
-    ::EncoderDecoder &model, const ::Vocabulary &trg_vocab,
+    ::AttentionEncoderDecoder &model, const ::Vocabulary &trg_vocab,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
   const unsigned bos_id = trg_vocab.stoi("<bos>");
@@ -82,7 +82,7 @@ inline std::string infer_sentence(
 }
 
 inline std::vector<std::string> infer_corpus(
-    ::EncoderDecoder &model, const ::Vocabulary &trg_vocab,
+    ::AttentionEncoderDecoder &model, const ::Vocabulary &trg_vocab,
     ::Sampler &sampler) {
   std::vector<std::string> hyps;
   sampler.reset();
@@ -102,7 +102,7 @@ inline std::vector<std::string> infer_corpus(
 
 inline void save_all(
     const std::string &model_dir,
-    const ::EncoderDecoder &model,
+    const ::AttentionEncoderDecoder &model,
     const primitiv::Trainer &trainer,
     float train_avg_loss,
     float dev_avg_loss,
@@ -117,7 +117,7 @@ inline void save_all(
 
 inline void train_epoch(
     const std::string &model_dir, unsigned epoch,
-    ::EncoderDecoder &model, const ::Vocabulary &trg_vocab,
+    ::AttentionEncoderDecoder &model, const ::Vocabulary &trg_vocab,
     primitiv::Trainer &trainer,
     ::Sampler &train_sampler, ::Sampler &dev_sampler) {
   std::cout << "Epoch " << epoch << ':' << std::endl;

@@ -10,7 +10,7 @@
 #include <primitiv/primitiv_cuda.h>
 #endif
 
-#include "encoder_decoder.h"
+#include "attention_encoder_decoder.h"
 #include "nmt_utils.h"
 #include "lstm.h"
 #include "mymt.pb.h"
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       std::cout << "Initializing model ... " << std::flush;
-      ::EncoderDecoder model(
+      ::AttentionEncoderDecoder model(
           "encdec", src_vocab.size(), trg_vocab.size(),
           embed_size, hidden_size, dropout_rate);
       std::cout << "done." << std::endl;

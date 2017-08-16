@@ -27,16 +27,19 @@ public:
     : name_(name)
     , ni_(input_size)
     , no_(output_size)
-    , pwxh_(name_ + ".wxh", {4 * no_, ni_}, primitiv::initializers::XavierUniform())
-    , pwhh_(name_ + ".whh", {4 * no_, no_}, primitiv::initializers::XavierUniform())
-    , pbh_(name_ + ".bh", {4 * no_}, primitiv::initializers::Constant(0)) {}
+    , pwxh_(name_ + ".w_xh", {4 * no_, ni_},
+        primitiv::initializers::XavierUniform())
+    , pwhh_(name_ + ".w_hh", {4 * no_, no_},
+        primitiv::initializers::XavierUniform())
+    , pbh_(name_ + ".b_h", {4 * no_},
+        primitiv::initializers::Constant(0)) {}
 
   // Loads all parameters.
   LSTM(const std::string &name, const std::string &prefix)
     : name_(name)
-    , pwxh_(primitiv::Parameter::load(prefix + name_ + ".wxh"))
-    , pwhh_(primitiv::Parameter::load(prefix + name_ + ".whh"))
-    , pbh_(primitiv::Parameter::load(prefix + name_ + ".bh")) {
+    , pwxh_(primitiv::Parameter::load(prefix + name_ + ".w_xh"))
+    , pwhh_(primitiv::Parameter::load(prefix + name_ + ".w_hh"))
+    , pbh_(primitiv::Parameter::load(prefix + name_ + ".b_h")) {
       std::ifstream ifs;
       ::open_file(prefix + name_ + ".config", ifs);
       ifs >> ni_ >> no_;
@@ -69,7 +72,7 @@ public:
     whh_ = F::input(pwhh_);
     bh_ = F::input(pbh_);
     c_ = init_c.valid() ? init_c : F::zeros({no_});
-    h_ = init_h.valid() ? init_h : F::zeros({no_});
+    h_ = init_h.valid() ? init_h : F::tanh(c_);
   }
 
   // One step forwarding.
