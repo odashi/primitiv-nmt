@@ -54,4 +54,6 @@ int main(int argc, char *argv[]) {
         std::cout << trg_sent << std::endl;
       }
   });
+
+  return 0;
 }
