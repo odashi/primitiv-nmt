@@ -21,7 +21,7 @@ class AttentionEncoderDecoder {
   primitiv::Parameter pw_att_fbh_, pw_att_dh_, pb_att_h_, pw_att_ha_;
   primitiv::Parameter pw_dec_cdj_, pb_dec_j_, pw_dec_jy_, pb_dec_y_;
   ::LSTM rnn_fw_, rnn_bw_, rnn_dec_;
-  primitiv::Node fb_, fbh_, bcast_, j_;
+  primitiv::Node fb_, fbh_, bcast_, d_, j_;
   primitiv::Node l_trg_xe_;
   primitiv::Node w_att_dh_, b_att_h_, w_att_ha_;
   primitiv::Node w_dec_cdj_, b_dec_j_, w_dec_jy_, b_dec_y_;
@@ -206,20 +206,26 @@ public:
     b_dec_y_ = F::input(pb_dec_y_);
   }
 
-  // One-step decoding
-  primitiv::Node decode_step(
+  // Calculates next attention logits
+  primitiv::Node decode_atten(
       const std::vector<unsigned> &trg_words, bool train) {
     namespace F = primitiv::node_ops;
     using primitiv::Node;
 
     const Node e = F::pick(l_trg_xe_, trg_words, 1);
-    const Node d = apply_rnn(rnn_dec_, F::concat({e, j_}, 0), train);
-    const Node dh = F::matmul(w_att_dh_, d) + b_att_h_;
+    d_ = apply_rnn(rnn_dec_, F::concat({e, j_}, 0), train);
+    const Node dh = F::matmul(w_att_dh_, d_) + b_att_h_;
     const Node h = F::tanh(fbh_ + F::matmul(dh, bcast_));  // H x |src|
-    const Node a_logit = F::transpose(F::matmul(w_att_ha_, h));  // |src| x 1
-    const Node a_prob = F::softmax(a_logit, 0);
-    const Node c = F::matmul(fb_, a_prob);  // 2H
-    j_ = F::tanh(F::matmul(w_dec_cdj_, F::concat({c, d}, 0)) + b_dec_j_);
+    return F::transpose(F::matmul(w_att_ha_, h));  // |src| x 1
+  }
+
+  // Calculates next words
+  primitiv::Node decode_word(const primitiv::Node &a_probs) {
+    namespace F = primitiv::node_ops;
+    using primitiv::Node;
+
+    const Node c = F::matmul(fb_, a_probs);  // 2H
+    j_ = F::tanh(F::matmul(w_dec_cdj_, F::concat({c, d_}, 0)) + b_dec_j_);
     return F::matmul(w_dec_jy_, j_) + b_dec_y_;
   }
 
@@ -231,7 +237,9 @@ public:
 
     std::vector<Node> losses;
     for (unsigned i = 0; i < trg_batch.size() - 1; ++i) {
-      Node y = decode_step(trg_batch[i], train);
+      const Node a_logits = decode_atten(trg_batch[i], train);
+      const Node a_probs = F::softmax(a_logits, 0);
+      const Node y = decode_word(a_probs);
       losses.emplace_back(F::softmax_cross_entropy(y, trg_batch[i + 1], 0));
     }
     return F::batch::mean(F::sum(losses));

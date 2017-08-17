@@ -49,6 +49,9 @@ inline std::string infer_sentence(
     ::AttentionEncoderDecoder &model, const ::Vocabulary &trg_vocab,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
+  namespace F = primitiv::node_ops;
+  using primitiv::Node;
+
   const unsigned bos_id = trg_vocab.stoi("<bos>");
   const unsigned eos_id = trg_vocab.stoi("<eos>");
 
@@ -61,7 +64,9 @@ inline std::string infer_sentence(
   // Decode
   while (trg_ids.back() != eos_id) {
     const std::vector<unsigned> prev {trg_ids.back()};
-    const primitiv::Node scores = model.decode_step(prev, false);
+    const Node a_logits = model.decode_atten(prev, false);
+    const Node a_probs = F::softmax(a_logits, 0);
+    const Node scores = model.decode_word(a_probs);
     const unsigned next = ::argmax(g.forward(scores).to_vector());
     trg_ids.emplace_back(next);
 
