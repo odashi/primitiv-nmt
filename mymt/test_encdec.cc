@@ -1,5 +1,6 @@
 #include "config.h"
 
+#include <cstdio>
 #include <iostream>
 #include <string>
 
@@ -30,6 +31,8 @@ int main(int argc, char *argv[]) {
 
       const ::Vocabulary src_vocab(src_vocab_file);
       const ::Vocabulary trg_vocab(trg_vocab_file);
+      const unsigned bos_id = trg_vocab.stoi("<bos>");
+      const unsigned eos_id = trg_vocab.stoi("<eos>");
 
 #ifdef MYMT_USE_CUDA
       primitiv::CUDADevice dev(0);
@@ -49,9 +52,15 @@ int main(int argc, char *argv[]) {
         for (unsigned src_id : src_ids) {
           src_batch.emplace_back(std::vector<unsigned> {src_id});
         }
-        const std::string trg_sent = ::infer_sentence(
-            model, trg_vocab, src_batch, 64);
-        std::cout << trg_sent << std::endl;
+        const ::Result ret = ::infer_sentence(
+            model, bos_id, eos_id, src_batch, 64);
+        const std::string hyp_str = ::make_hyp_str(ret, trg_vocab);
+        for (unsigned i = 0; i < ret.atten_probs.size(); ++i) {
+          std::cout << "a" << (i + 1) << '\t';
+          for (float ap : ret.atten_probs[i]) std::printf(" %.2f", ap);
+          std::cout << std::endl;
+        }
+        std::cout << "h\t" << hyp_str << std::endl;
       }
   });
 

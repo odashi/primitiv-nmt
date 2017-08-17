@@ -12,6 +12,11 @@
 #include "utils.h"
 #include "vocabulary.h"
 
+struct Result {
+  std::vector<unsigned> word_ids;
+  std::vector<std::vector<float>> atten_probs;
+};
+
 inline float process(
     ::AttentionEncoderDecoder &model, primitiv::Trainer &trainer,
     ::Sampler &sampler, bool train) {
@@ -45,45 +50,48 @@ inline float process(
   return accum_loss / num_labels;
 }
 
-inline std::string infer_sentence(
-    ::AttentionEncoderDecoder &model, const ::Vocabulary &trg_vocab,
+inline ::Result infer_sentence(
+    ::AttentionEncoderDecoder &model,
+    unsigned bos_id, unsigned eos_id,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
   namespace F = primitiv::node_ops;
   using primitiv::Node;
 
-  const unsigned bos_id = trg_vocab.stoi("<bos>");
-  const unsigned eos_id = trg_vocab.stoi("<eos>");
-
   // Initialize the model
   primitiv::Graph g;
   primitiv::Graph::set_default_graph(g);
   model.encode(src_batch, false);
-  std::vector<unsigned> trg_ids {bos_id};
+
+  ::Result ret { {bos_id}, {} };
 
   // Decode
-  while (trg_ids.back() != eos_id) {
-    const std::vector<unsigned> prev {trg_ids.back()};
+  while (ret.word_ids.back() != eos_id) {
+    const std::vector<unsigned> prev {ret.word_ids.back()};
     const Node a_logits = model.decode_atten(prev, false);
     const Node a_probs = F::softmax(a_logits, 0);
-    const Node scores = model.decode_word(a_probs);
-    const unsigned next = ::argmax(g.forward(scores).to_vector());
-    trg_ids.emplace_back(next);
+    ret.atten_probs.emplace_back(g.forward(a_probs).to_vector());
 
-    if (trg_ids.size() == limit + 1) {
-      trg_ids.emplace_back(eos_id);
+    const Node scores = model.decode_word(a_probs);
+    ret.word_ids.emplace_back(::argmax(g.forward(scores).to_vector()));
+
+    if (ret.word_ids.size() == limit + 1) {
+      ret.word_ids.emplace_back(eos_id);
       break;
     }
   }
 
-  // Make resulting string.
-  std::string hyp;
-  for (unsigned i = 1; i < trg_ids.size() - 1; ++i) {
-    if (i > 1) hyp += ' ';
-    hyp += trg_vocab.itos(trg_ids[i]);
-  }
+  return ret;
+}
 
-  return hyp;
+inline std::string make_hyp_str(
+    const ::Result &ret, const ::Vocabulary &trg_vocab) {
+  std::string hyp_str;
+  for (unsigned i = 1; i < ret.word_ids.size() - 1; ++i) {
+    if (i > 1) hyp_str += ' ';
+    hyp_str += trg_vocab.itos(ret.word_ids[i]);
+  }
+  return hyp_str;
 }
 
 inline std::vector<std::string> infer_corpus(
@@ -92,6 +100,9 @@ inline std::vector<std::string> infer_corpus(
   std::vector<std::string> hyps;
   sampler.reset();
 
+  const unsigned bos_id = trg_vocab.stoi("<bos>");
+  const unsigned eos_id = trg_vocab.stoi("<eos>");
+
   while (sampler.has_next()) {
     const Batch batch = sampler.next();
     const unsigned batch_size = batch.source[0].size();
@@ -99,7 +110,10 @@ inline std::vector<std::string> infer_corpus(
       throw std::runtime_error(
           "inference is allowed only for each one sentence.");
     }
-    hyps.emplace_back(::infer_sentence(model, trg_vocab, batch.source, 64));
+
+    const ::Result ret = ::infer_sentence(
+        model, bos_id, eos_id, batch.source, 64);
+    hyps.emplace_back(::make_hyp_str(ret, trg_vocab));
   }
 
   return hyps;
