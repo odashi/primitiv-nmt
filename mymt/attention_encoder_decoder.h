@@ -140,6 +140,15 @@ public:
     rnn_dec_.register_training(trainer);
   }
 
+  // Applies RNN and dropout.
+  primitiv::Node apply_rnn(::LSTM &rnn, const primitiv::Node &x, bool train) {
+    namespace F = primitiv::node_ops;
+    using primitiv::Node;
+
+    const Node y = rnn.forward(F::dropout(x, dropout_rate_, train));
+    return F::dropout(y, dropout_rate_, train);
+  }
+
   // Encodes source batch and initializes decoder states.
   void encode(
       const std::vector<std::vector<unsigned>> &src_batch, bool train) {
@@ -158,14 +167,14 @@ public:
     rnn_fw_.init();
     std::vector<Node> f_list;
     for (const Node &e : e_list) {
-      f_list.emplace_back(rnn_fw_.forward(e));
+      f_list.emplace_back(apply_rnn(rnn_fw_, e, train));
     }
 
     // Backward encoding
     rnn_bw_.init();
     std::vector<Node> b_list;
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
-      b_list.emplace_back(rnn_bw_.forward(*it));
+      b_list.emplace_back(apply_rnn(rnn_bw_, *it, train));
     }
     std::reverse(b_list.begin(), b_list.end());
 
@@ -204,7 +213,7 @@ public:
     using primitiv::Node;
 
     const Node e = F::pick(l_trg_xe_, trg_words, 1);
-    const Node d = rnn_dec_.forward(F::concat({e, j_}, 0));
+    const Node d = apply_rnn(rnn_dec_, F::concat({e, j_}, 0), train);
     const Node dh = F::matmul(w_att_dh_, d) + b_att_h_;
     const Node h = F::tanh(fbh_ + F::matmul(dh, bcast_));  // H x |src|
     const Node a_logit = F::transpose(F::matmul(w_att_ha_, h));  // |src| x 1
