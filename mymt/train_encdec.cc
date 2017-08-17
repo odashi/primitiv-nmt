@@ -82,18 +82,16 @@ int main(int argc, char *argv[]) {
 
       std::cout << "Saving initial model ... " << std::flush;
       ::make_directory(model_dir);
-      ::save_unsigned(model_dir + "/batch_size", batch_size);
+      ::save_value(model_dir + "/batch_size", batch_size);
       ::save_all(
           ::get_model_dir(model_dir, 0), model, trainer,
           1e10, 1e10, std::vector<std::string>(dev_corpus.samples_size()));
       std::cout << "done." << std::endl;
 
       std::cout << "Start training." << std::endl;
-      for (unsigned epoch = 1; epoch <= num_epochs; ++epoch) {
-        ::train_epoch(
-            model_dir, epoch,
-            model, trg_vocab, trainer, train_sampler, dev_sampler);
-      }
+      ::train(
+          0, num_epochs,
+          model_dir, model, trg_vocab, trainer, train_sampler, dev_sampler);
       std::cout << "Finished." << std::endl;
   });
 

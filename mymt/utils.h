@@ -52,26 +52,29 @@ inline void make_directory(const std::string &path) {
   }
 }
 
-inline void save_unsigned(const std::string &path, float value) {
+template <typename T>
+inline void save_value(const std::string &path, T value) {
   std::ofstream ofs;
   ::open_file(path, ofs);
   ofs << value << std::endl;
 }
 
-inline unsigned load_unsigned(const std::string &path) {
-  std::ifstream ifs;
-  ::open_file(path, ifs);
-  unsigned value;
-  ifs >> value;
-  return value;
-}
-
-inline void save_float(const std::string &path, float value) {
+template <>
+inline void save_value(const std::string &path, float value) {
   std::ofstream ofs;
   ::open_file(path, ofs);
   char buf[16];
   ::sprintf(buf, "%.8e", value);
   ofs << buf << std::endl;
+}
+
+template <typename T>
+inline T load_value(const std::string &path) {
+  std::ifstream ifs;
+  ::open_file(path, ifs);
+  T value;
+  ifs >> value;
+  return value;
 }
 
 inline void save_strings(

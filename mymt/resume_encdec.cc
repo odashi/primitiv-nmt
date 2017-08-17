@@ -38,7 +38,8 @@ int main(int argc, char *argv[]) {
       const unsigned last_epoch = std::stoi(*++argv);
       const unsigned num_epochs = std::stoi(*++argv);
 
-      const unsigned batch_size = ::load_unsigned(model_dir + "/batch_size");
+      const unsigned batch_size = ::load_value<unsigned>(
+          model_dir + "/batch_size");
 
       std::cout << "Loading vocabularies ... " << std::flush;
       const ::Vocabulary src_vocab(src_vocab_file);
@@ -76,11 +77,9 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       std::cout << "Restart training." << std::endl;
-      for (unsigned epoch = 1; epoch <= num_epochs; ++epoch) {
-        ::train_epoch(
-            model_dir, epoch + last_epoch,
-            model, trg_vocab, *trainer, train_sampler, dev_sampler);
-      }
+      ::train(
+          last_epoch, num_epochs,
+          model_dir, model, trg_vocab, *trainer, train_sampler, dev_sampler);
       std::cout << "Finished." << std::endl;
   });
 

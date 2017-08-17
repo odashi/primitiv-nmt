@@ -110,15 +110,15 @@ inline void save_all(
   ::make_directory(model_dir);
   model.save(model_dir + "/model.");
   trainer.save(model_dir + "/trainer");
-  ::save_float(model_dir + "/train.avg_loss", train_avg_loss);
-  ::save_float(model_dir + "/dev.avg_loss", dev_avg_loss);
+  ::save_value(model_dir + "/train.avg_loss", train_avg_loss);
+  ::save_value(model_dir + "/dev.avg_loss", dev_avg_loss);
   ::save_strings(model_dir + "/dev.hyp", dev_hyps);
 }
 
-inline void train_epoch(
-    const std::string &model_dir, unsigned epoch,
-    ::AttentionEncoderDecoder &model, const ::Vocabulary &trg_vocab,
-    primitiv::Trainer &trainer,
+inline void train_step(
+    unsigned epoch,
+    const std::string &model_dir, ::AttentionEncoderDecoder &model,
+    const ::Vocabulary &trg_vocab, primitiv::Trainer &trainer,
     ::Sampler &train_sampler, ::Sampler &dev_sampler) {
   std::cout << "Epoch " << epoch << ':' << std::endl;
   float train_avg_loss = ::process(model, trainer, train_sampler, true);
@@ -135,6 +135,18 @@ inline void train_epoch(
       ::get_model_dir(model_dir, epoch), model, trainer,
       train_avg_loss, dev_avg_loss, dev_hyps);
   std::cout << "done." << std::endl;
+}
+
+inline void train(
+    unsigned last_epoch, unsigned num_epochs,
+    const std::string &model_dir, ::AttentionEncoderDecoder &model,
+    const ::Vocabulary &trg_vocab, primitiv::Trainer &trainer,
+    ::Sampler &train_sampler, ::Sampler &dev_sampler) {
+  for (unsigned i = 1; i <= num_epochs; ++i) {
+    ::train_step(
+        last_epoch + i,
+        model_dir, model, trg_vocab, trainer, train_sampler, dev_sampler);
+  }
 }
 
 #endif  // MYMT_NMT_UTILS_H_
