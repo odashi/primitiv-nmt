@@ -39,7 +39,7 @@ inline ::Result infer_sentence(
     const Node a_probs = F::softmax(a_logits, 0);
     ret.atten_probs.emplace_back(g.forward(a_probs).to_vector());
 
-    const Node scores = model.decode_word(a_probs);
+    const Node scores = model.decode_word(a_probs, false);
     ret.word_ids.emplace_back(::argmax(g.forward(scores).to_vector()));
 
     if (ret.word_ids.size() == limit + 1) {
@@ -172,7 +172,7 @@ public:
       ::save_value(model_dir_ + "/best.dev_avg_loss", best_dev_avg_loss_);
       if (epoch_ >= 10) {
         const float prev_lr_decay = opt_.get_learning_rate_scaling();
-        opt_.set_learning_rate_scaling(.70710678f * prev_lr_decay);
+        opt_.set_learning_rate_scaling(.5f * prev_lr_decay);
       }
     } else {
       const float prev_lr_decay = opt_.get_learning_rate_scaling();
