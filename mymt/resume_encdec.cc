@@ -27,6 +27,9 @@ int main(int argc, char *argv[]) {
       "(dir/out) Model directory",
       "(int) Last epoch",
       "(int) Number of epochs",
+#ifdef MYMT_USE_CUDA
+      "(int) GPU ID",
+#endif
   });
 
   ::global_try_block([&]() {
@@ -37,6 +40,9 @@ int main(int argc, char *argv[]) {
       const std::string model_dir = *++argv;
       const unsigned last_epoch = std::stoi(*++argv);
       const unsigned num_epochs = std::stoi(*++argv);
+#ifdef MYMT_USE_CUDA
+      const unsigned gpu_id = std::stoi(*++argv);
+#endif
 
       const unsigned batch_size = ::load_value<unsigned>(
           model_dir + "/batch_size");
@@ -57,7 +63,7 @@ int main(int argc, char *argv[]) {
 
       std::cout << "Initializing devices ... " << std::flush;
 #ifdef MYMT_USE_CUDA
-      primitiv::CUDADevice dev(0);
+      primitiv::CUDADevice dev(gpu_id);
 #else
       primitiv::CPUDevice dev;
 #endif
@@ -71,15 +77,17 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       std::cout << "Loading trainer ... " << std::flush;
-      std::shared_ptr<primitiv::Trainer> trainer = primitiv::Trainer::load(
+      std::shared_ptr<primitiv::Trainer> opt = primitiv::Trainer::load(
           last_dir + "/trainer");
-      model.register_training(*trainer);
+      model.register_training(*opt);
       std::cout << "done." << std::endl;
 
+      NMTTrainer trainer(
+          model_dir, trg_vocab, model, *opt,
+          train_sampler, dev_sampler, last_epoch);
+
       std::cout << "Restart training." << std::endl;
-      ::train(
-          last_epoch, num_epochs,
-          model_dir, model, trg_vocab, *trainer, train_sampler, dev_sampler);
+      for (unsigned i = 0; i < num_epochs; ++i) trainer.train();
       std::cout << "Finished." << std::endl;
   });
 

@@ -29,7 +29,12 @@ int main(int argc, char *argv[]) {
       "(int) Hidden size",
       "(float) dropout_rate",
       "(int) Batch size",
+      "(str) Trainer type (sgd|adam)",
+      "(float) Learning rate",
       "(int) Number of epochs",
+#ifdef MYMT_USE_CUDA
+      "(int) GPU ID",
+#endif
   });
 
   ::global_try_block([&]() {
@@ -42,7 +47,17 @@ int main(int argc, char *argv[]) {
       const unsigned hidden_size = std::stoi(*++argv);
       const float dropout_rate = std::stof(*++argv);
       const unsigned batch_size = std::stoi(*++argv);
+      const std::string opt_type = *++argv;
+      const float learning_rate = std::stof(*++argv);
       const unsigned num_epochs = std::stoi(*++argv);
+#ifdef MYMT_USE_CUDA
+      const unsigned gpu_id = std::stoi(*++argv);
+#endif
+
+      ::make_directory(model_dir);
+      ::save_value(model_dir + "/batch_size", batch_size);
+      ::save_value(model_dir + "/best.epoch", 0);
+      ::save_value(model_dir + "/best.dev_avg_loss", 1e10f);
 
       std::cout << "Loading vocabularies ... " << std::flush;
       const ::Vocabulary src_vocab(src_vocab_file);
@@ -60,7 +75,7 @@ int main(int argc, char *argv[]) {
 
       std::cout << "Initializing devices ... " << std::flush;
 #ifdef MYMT_USE_CUDA
-      primitiv::CUDADevice dev(0);
+      primitiv::CUDADevice dev(gpu_id);
 #else
       primitiv::CPUDevice dev;
 #endif
@@ -74,24 +89,27 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       std::cout << "Initializing trainer ... " << std::flush;
-      primitiv::trainers::Adam trainer;
-      trainer.set_weight_decay(1e-6);
-      trainer.set_gradient_clipping(5);
-      model.register_training(trainer);
+      std::shared_ptr<primitiv::Trainer> opt;
+      if (opt_type == "sgd") {
+        opt.reset(new primitiv::trainers::SGD(learning_rate));
+      } else if (opt_type == "adam") {
+        opt.reset(new primitiv::trainers::Adam(learning_rate));
+      } else throw std::runtime_error("Unknown trainer type: " + opt_type);
+      opt->set_weight_decay(1e-6);
+      opt->set_gradient_clipping(5);
+      model.register_training(*opt);
       std::cout << "done." << std::endl;
 
+      NMTTrainer trainer(
+          model_dir, trg_vocab, model, *opt, train_sampler, dev_sampler, 0);
+
       std::cout << "Saving initial model ... " << std::flush;
-      ::make_directory(model_dir);
-      ::save_value(model_dir + "/batch_size", batch_size);
-      ::save_all(
-          ::get_model_dir(model_dir, 0), model, trainer,
+      trainer.save(
           1e10, 1e10, std::vector<std::string>(dev_corpus.samples_size()));
       std::cout << "done." << std::endl;
 
       std::cout << "Start training." << std::endl;
-      ::train(
-          0, num_epochs,
-          model_dir, model, trg_vocab, trainer, train_sampler, dev_sampler);
+      for (unsigned i = 0; i < num_epochs; ++i) trainer.train();
       std::cout << "Finished." << std::endl;
   });
 

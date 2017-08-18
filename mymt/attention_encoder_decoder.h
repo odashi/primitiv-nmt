@@ -154,7 +154,7 @@ public:
       const std::vector<std::vector<unsigned>> &src_batch, bool train) {
     namespace F = primitiv::node_ops;
     using primitiv::Node;
-    const unsigned src_len = src_batch.size();
+    const unsigned src_len = src_batch.size() - 2;  // w/o <bos> and <eos>
 
     // Source embedding
     const Node l_src_xe = F::input(pl_src_xe_);
@@ -187,7 +187,7 @@ public:
     // Making matrix for calculatin attention
     const Node w_att_fbh = F::input(pw_att_fbh_);
     std::vector<Node> fb_list;
-    for (unsigned i = 0; i < src_len; ++i) {
+    for (unsigned i = 1; i <= src_len; ++i) {
       fb_list.emplace_back(F::concat({f_list[i], b_list[i]}, 0));
     }
     fb_ = F::concat(fb_list, 1);  // 2H x |src|
