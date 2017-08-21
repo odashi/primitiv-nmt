@@ -2,6 +2,7 @@
 #define MYMT_UTILS_H_
 
 #include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -41,14 +42,15 @@ template <class FStreamT>
 inline void open_file(const std::string &path, FStreamT &fs) {
   fs.open(path);
   if (!fs.is_open()) {
-    throw std::runtime_error("Failed to open file: " + path);
+    throw std::runtime_error(
+        "Failed to open file: " + path + ": " + std::strerror(errno));
   }
 }
 
 inline void make_directory(const std::string &path) {
   if (::mkdir(path.c_str(), 0755) != 0) {
-    std::string errstr = std::strerror(errno);
-    throw std::runtime_error("Failed to make directory: " + path + ": " + errstr);
+    throw std::runtime_error(
+        "Failed to make directory: " + path + ": " + std::strerror(errno));
   }
 }
 
