@@ -170,10 +170,6 @@ public:
       best_dev_avg_loss_ = dev_avg_loss;
       ::save_value(model_dir_ + "/best.epoch", epoch_);
       ::save_value(model_dir_ + "/best.dev_avg_loss", best_dev_avg_loss_);
-      if (epoch_ >= 10 && opt_.name() == "sgd") {
-        const float prev_lr_decay = opt_.get_learning_rate_scaling();
-        opt_.set_learning_rate_scaling(.5f * prev_lr_decay);
-      }
     } else {
       const float prev_lr_decay = opt_.get_learning_rate_scaling();
       opt_.set_learning_rate_scaling(.5f * prev_lr_decay);

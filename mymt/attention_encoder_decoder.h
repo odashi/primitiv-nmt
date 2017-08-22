@@ -18,12 +18,12 @@ class AttentionEncoderDecoder {
   float dropout_rate_;
   primitiv::Parameter pl_src_xe_, pl_trg_xe_;
   primitiv::Parameter pw_brd_fbd_, pb_brd_d_;
-  primitiv::Parameter pw_att_fbh_, pw_att_dh_, pw_att_ha_;
+  primitiv::Parameter pw_att_fbh_, pw_att_dh_, pb_att_h_, pw_att_ha_;
   primitiv::Parameter pw_dec_cdj_, pb_dec_j_, pw_dec_jy_, pb_dec_y_;
   ::LSTM rnn_fw_, rnn_bw_, rnn_dec_;
-  primitiv::Node fb_, fbh_, bcast_, d_, j_;
+  primitiv::Node fb_, fbh_, d_, j_;
   primitiv::Node l_trg_xe_;
-  primitiv::Node w_att_dh_, w_att_ha_;
+  primitiv::Node w_att_dh_, b_att_h_, w_att_ha_;
   primitiv::Node w_dec_cdj_, b_dec_j_, w_dec_jy_, b_dec_y_;
 
   AttentionEncoderDecoder(const AttentionEncoderDecoder &) = delete;
@@ -52,6 +52,8 @@ public:
         primitiv::initializers::XavierUniform())
     , pw_att_dh_(name_ + ".w_att_dh", {hidden_size_, hidden_size_},
         primitiv::initializers::XavierUniform())
+    , pb_att_h_(name_ + ".b_att_h", {hidden_size},
+        primitiv::initializers::Constant(0))
     , pw_att_ha_(name_ + ".w_att_ha", {1, hidden_size_},
         primitiv::initializers::XavierUniform())
     , pw_dec_cdj_(name_ + ".w_dec_cdj", {embed_size_, 3 * hidden_size_},
@@ -75,6 +77,7 @@ public:
     , pb_brd_d_(primitiv::Parameter::load(prefix + name_ + ".b_brd_d"))
     , pw_att_fbh_(primitiv::Parameter::load(prefix + name_ + ".w_att_fbh"))
     , pw_att_dh_(primitiv::Parameter::load(prefix + name_ + ".w_att_dh"))
+    , pb_att_h_(primitiv::Parameter::load(prefix + name_ + ".b_att_h"))
     , pw_att_ha_(primitiv::Parameter::load(prefix + name_ + ".w_att_ha"))
     , pw_dec_cdj_(primitiv::Parameter::load(prefix + name_ + ".w_dec_cdj"))
     , pb_dec_j_(primitiv::Parameter::load(prefix + name_ + ".b_dec_j"))
@@ -100,6 +103,7 @@ public:
     pb_brd_d_.save(prefix + pb_brd_d_.name());
     pw_att_fbh_.save(prefix + pw_att_fbh_.name());
     pw_att_dh_.save(prefix + pw_att_dh_.name());
+    pb_att_h_.save(prefix + pb_att_h_.name());
     pw_att_ha_.save(prefix + pw_att_ha_.name());
     pw_dec_cdj_.save(prefix + pw_dec_cdj_.name());
     pb_dec_j_.save(prefix + pb_dec_j_.name());
@@ -125,6 +129,7 @@ public:
     trainer.add_parameter(pb_brd_d_);
     trainer.add_parameter(pw_att_fbh_);
     trainer.add_parameter(pw_att_dh_);
+    trainer.add_parameter(pb_att_h_);
     trainer.add_parameter(pw_att_ha_);
     trainer.add_parameter(pw_dec_cdj_);
     trainer.add_parameter(pb_dec_j_);
@@ -152,7 +157,7 @@ public:
       const std::vector<std::vector<unsigned>> &src_batch, bool train) {
     namespace F = primitiv::node_ops;
     using primitiv::Node;
-    const unsigned src_len = src_batch.size() - 2;  // w/o <bos> and <eos>
+    const unsigned src_len = src_batch.size();
 
     // Source embedding
     const Node l_src_xe = F::input(pl_src_xe_);
@@ -164,15 +169,15 @@ public:
     // Forward encoding
     rnn_fw_.init();
     std::vector<Node> f_list;
-    for (unsigned i = 1; i <= src_len; ++i) {
+    for (unsigned i = 0; i < src_len; ++i) {
       f_list.emplace_back(apply_rnn(rnn_fw_, e_list[i], train));
     }
 
     // Backward encoding
     rnn_bw_.init();
     std::vector<Node> b_list;
-    for (unsigned i = src_len; i >= 1; --i) {
-      b_list.emplace_back(apply_rnn(rnn_bw_, e_list[i], train));
+    for (unsigned i = src_len; i > 0; --i) {
+      b_list.emplace_back(apply_rnn(rnn_bw_, e_list[i - 1], train));
     }
     std::reverse(b_list.begin(), b_list.end());
 
@@ -190,12 +195,12 @@ public:
     }
     fb_ = F::concat(fb_list, 1);  // 2H x |src|
     fbh_ = F::matmul(w_att_fbh, fb_);  // H x |src|
-    bcast_ = F::ones({1, src_len});
     j_ = F::zeros({embed_size_});
 
     // Other parameters
     l_trg_xe_ = F::input(pl_trg_xe_);
     w_att_dh_ = F::input(pw_att_dh_);
+    b_att_h_ = F::input(pb_att_h_);
     w_att_ha_ = F::input(pw_att_ha_);
     w_dec_cdj_ = F::input(pw_dec_cdj_);
     b_dec_j_ = F::input(pb_dec_j_);
@@ -211,8 +216,9 @@ public:
 
     const Node e = F::pick(l_trg_xe_, trg_words, 1);
     d_ = apply_rnn(rnn_dec_, F::concat({e, j_}, 0), train);
-    const Node dh = F::matmul(w_att_dh_, d_);
-    const Node h = F::tanh(fbh_ + F::matmul(dh, bcast_));  // H x |src|
+    const Node dh = F::matmul(w_att_dh_, d_) + b_att_h_;
+    const Node dh_bcast = F::broadcast(dh, 1, fbh_.shape()[1]); // H x |src|
+    const Node h = F::tanh(fbh_ + dh_bcast);
     return F::transpose(F::matmul(w_att_ha_, h));  // |src| x 1
   }
 
