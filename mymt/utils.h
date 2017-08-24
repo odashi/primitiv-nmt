@@ -126,6 +126,19 @@ inline std::vector<std::string> split(const std::string &str) {
   return ret;
 }
 
+inline std::vector<std::string> split(
+    const std::string &str, const char delim) {
+  std::vector<std::string> ret;
+  unsigned l = 0;
+  while (l <= str.size()) {
+    unsigned r = l;
+    while (r < str.size() && str[r] != delim) ++r;
+    ret.emplace_back(str.substr(l, r - l));
+    l = r + 1;
+  }
+  return ret;
+}
+
 inline unsigned argmax(const std::vector<float> &scores) {
   if (scores.empty()) throw std::runtime_error("No scores to calculate argmax.");
   unsigned max_id = 0;
