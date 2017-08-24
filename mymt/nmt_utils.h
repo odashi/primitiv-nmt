@@ -2,6 +2,7 @@
 #define MYMT_NMT_UTILS_H_
 
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -41,6 +42,56 @@ inline ::Result infer_sentence(
 
     const Node scores = model.decode_word(a_probs, false);
     ret.word_ids.emplace_back(::argmax(g.forward(scores).to_vector()));
+
+    if (ret.word_ids.size() == limit + 1) {
+      ret.word_ids.emplace_back(eos_id);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+inline ::Result infer_sentence_ensemble(
+    std::vector<std::unique_ptr<primitiv::Device>> &devs,
+    std::vector<std::unique_ptr<::AttentionEncoderDecoder>> &models,
+    unsigned bos_id, unsigned eos_id,
+    const std::vector<std::vector<unsigned>> &src_batch,
+    unsigned limit) {
+  namespace F = primitiv::node_ops;
+  using primitiv::Node;
+
+  // Initialize the model
+  primitiv::Graph g;
+  primitiv::Graph::set_default_graph(g);
+  for (unsigned i = 0; i < models.size(); ++i) {
+    primitiv::Device::set_default_device(*devs[i % devs.size()]);
+    models[i]->encode(src_batch, false);
+  }
+
+  ::Result ret { {bos_id}, {} };
+
+  // Decode
+  while (ret.word_ids.back() != eos_id) {
+    std::vector<Node> a_probs_list;
+    std::vector<Node> scores_list;
+    const std::vector<unsigned> prev {ret.word_ids.back()};
+
+    for (unsigned i = 0; i < models.size(); ++i) {
+      primitiv::Device::set_default_device(*devs[i % devs.size()]);
+      const Node a_logits = models[i]->decode_atten(prev, false);
+      const Node a_probs = F::softmax(a_logits, 0);
+      a_probs_list.emplace_back(F::copy(a_probs, *devs[0]));
+
+      const Node scores = models[i]->decode_word(a_probs, false);
+      scores_list.emplace_back(F::copy(scores, *devs[0]));
+    }
+
+    const Node a_probs_mean = F::mean(a_probs_list);
+    const Node scores_sum = F::sum(scores_list);
+
+    ret.atten_probs.emplace_back(g.forward(a_probs_mean).to_vector());
+    ret.word_ids.emplace_back(::argmax(g.forward(scores_sum).to_vector()));
 
     if (ret.word_ids.size() == limit + 1) {
       ret.word_ids.emplace_back(eos_id);

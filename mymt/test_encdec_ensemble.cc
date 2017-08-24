@@ -74,6 +74,8 @@ int main(int argc, char *argv[]) {
       }
 
       std::string line;
+      const std::vector<std::string> chars {"   ", " ░░", " ▒▒", " ▓▓", " ██"};
+
       while (std::getline(std::cin, line)) {
         const std::vector<unsigned> src_ids = src_vocab.line_to_ids(
             "<bos> " + line + " <eos>");
@@ -88,23 +90,19 @@ int main(int argc, char *argv[]) {
           src_batch.emplace_back(std::vector<unsigned> {src_id});
         }
 
-        for (unsigned i = 0; i < models.size(); ++i) {
-          primitiv::Device::set_default_device(*devs[i % devs.size()]);
-          const ::Result ret = ::infer_sentence(
-              *models[i], bos_id, eos_id, src_batch, 64);
-          const std::string hyp_str = ::make_hyp_str(ret, trg_vocab);
+        const ::Result ret = ::infer_sentence_ensemble(
+            devs, models, bos_id, eos_id, src_batch, 64);
+        const std::string hyp_str = ::make_hyp_str(ret, trg_vocab);
 
-          std::vector<std::string> chars {"   ", " ░░", " ▒▒", " ▓▓", " ██"};
-          for (unsigned i = 0; i < ret.atten_probs.size(); ++i) {
-            std::cout << "a" << (i + 1) << "\t[";
-            for (float ap : ret.atten_probs[i]) {
-              unsigned idx = static_cast<unsigned>(ap * chars.size());
-              std::cout << chars[idx >= chars.size() ? chars.size() - 1 : idx];
-            }
-            std::cout << " ]" << std::endl;
+        for (unsigned i = 0; i < ret.atten_probs.size(); ++i) {
+          std::cout << "a" << (i + 1) << "\t[";
+          for (float ap : ret.atten_probs[i]) {
+            unsigned idx = static_cast<unsigned>(ap * chars.size());
+            std::cout << chars[idx >= chars.size() ? chars.size() - 1 : idx];
           }
-          std::cout << "h\t" << hyp_str << std::endl;
+          std::cout << " ]" << std::endl;
         }
+        std::cout << "h\t" << hyp_str << std::endl;
       }
   });
 
