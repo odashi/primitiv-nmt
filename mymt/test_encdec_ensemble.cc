@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
           src_batch.emplace_back(std::vector<unsigned> {src_id});
         }
 
-        const ::Result ret = ::infer_sentence_ensemble(
+        const ::Result ret = ::infer_sentence_ensemble2(
             devs, models, bos_id, eos_id, src_batch, 64);
         const std::string hyp_str = ::make_hyp_str(ret, trg_vocab);
 

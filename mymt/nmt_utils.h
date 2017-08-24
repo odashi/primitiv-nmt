@@ -102,6 +102,58 @@ inline ::Result infer_sentence_ensemble(
   return ret;
 }
 
+inline ::Result infer_sentence_ensemble2(
+    std::vector<std::unique_ptr<primitiv::Device>> &devs,
+    std::vector<std::unique_ptr<::AttentionEncoderDecoder>> &models,
+    unsigned bos_id, unsigned eos_id,
+    const std::vector<std::vector<unsigned>> &src_batch,
+    unsigned limit) {
+  namespace F = primitiv::node_ops;
+  using primitiv::Node;
+
+  // Initialize the model
+  primitiv::Graph g;
+  primitiv::Graph::set_default_graph(g);
+  for (unsigned i = 0; i < models.size(); ++i) {
+    primitiv::Device::set_default_device(*devs[i % devs.size()]);
+    models[i]->encode(src_batch, false);
+  }
+
+  ::Result ret { {bos_id}, {} };
+
+  // Decode
+  while (ret.word_ids.back() != eos_id) {
+    const std::vector<unsigned> prev {ret.word_ids.back()};
+
+    std::vector<Node> a_logits_list;
+    for (unsigned i = 0; i < models.size(); ++i) {
+      primitiv::Device::set_default_device(*devs[i % devs.size()]);
+      const Node a_logits = models[i]->decode_atten(prev, false);
+      a_logits_list.emplace_back(F::copy(a_logits, *devs[0]));
+    }
+    const Node a_logits_mean = F::mean(a_logits_list);
+    const Node a_probs_mean = F::softmax(a_logits_mean, 0);
+
+    std::vector<Node> scores_list;
+    for (unsigned i = 0; i < models.size(); ++i) {
+      primitiv::Device::set_default_device(*devs[i % devs.size()]);
+      const Node scores = models[i]->decode_word(F::copy(a_probs_mean), false);
+      scores_list.emplace_back(F::copy(scores, *devs[0]));
+    }
+    const Node scores_sum = F::sum(scores_list);
+
+    ret.atten_probs.emplace_back(g.forward(a_probs_mean).to_vector());
+    ret.word_ids.emplace_back(::argmax(g.forward(scores_sum).to_vector()));
+
+    if (ret.word_ids.size() == limit + 1) {
+      ret.word_ids.emplace_back(eos_id);
+      break;
+    }
+  }
+
+  return ret;
+}
+
 inline std::string make_hyp_str(
     const ::Result &ret, const ::Vocabulary &trg_vocab) {
   std::string hyp_str;
