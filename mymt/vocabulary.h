@@ -16,6 +16,7 @@ class Vocabulary {
   std::unordered_map<std::string, unsigned> stoi_;
   std::vector<std::string> itos_;
   std::vector<unsigned> freq_;
+  std::vector<float> prob_;
 
   Vocabulary(const Vocabulary &) = delete;
   Vocabulary &operator=(const Vocabulary &) = delete;
@@ -24,10 +25,15 @@ public:
   Vocabulary(const std::string &path) {
     mymt::proto::Vocabulary vocab_data;
     ::load_proto(path, vocab_data);
+    unsigned sum_freq = 0;
     for (const auto &stat : vocab_data.tokens()) {
       stoi_.emplace(stat.surface(), stoi_.size());
       itos_.emplace_back(stat.surface());
       freq_.emplace_back(stat.frequency());
+      sum_freq += stat.frequency();
+    }
+    for (unsigned f : freq_) {
+      prob_.emplace_back(f / static_cast<float>(sum_freq));
     }
   }
 
@@ -63,6 +69,13 @@ public:
       throw std::runtime_error("Index out of range: " + std::to_string(id));
     }
     return freq_[id];
+  }
+
+  float prob(unsigned id) const {
+    if (id > size()) {
+      throw std::runtime_error("Index out of range: " + std::to_string(id));
+    }
+    return prob_[id];
   }
 
   unsigned size() const { return itos_.size(); }
