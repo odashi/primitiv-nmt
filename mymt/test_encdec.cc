@@ -51,7 +51,6 @@ int main(int argc, char *argv[]) {
       ::AttentionEncoderDecoder model("encdec", subdir + "/model.");
 
       std::string line;
-      const std::vector<std::string> chars {"   ", " ░░", " ▒▒", " ▓▓", " ██"};
 
       while (std::getline(std::cin, line)) {
         const std::vector<unsigned> src_ids = src_vocab.line_to_ids(
@@ -74,8 +73,8 @@ int main(int argc, char *argv[]) {
         for (unsigned i = 0; i < ret.atten_probs.size(); ++i) {
           std::cout << "a" << (i + 1) << "\t[";
           for (float ap : ret.atten_probs[i]) {
-            unsigned idx = static_cast<unsigned>(ap * chars.size());
-            std::cout << chars[idx >= chars.size() ? chars.size() - 1 : idx];
+            if (ap > 0.1f) std::printf(" .%01d", static_cast<int>(ap * 10));
+            else std::cout << "   ";
           }
           std::cout << " ]" << std::endl;
         }
