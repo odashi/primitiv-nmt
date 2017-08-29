@@ -83,8 +83,8 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       NMTTrainer trainer(
-          model_dir, trg_vocab, model, *opt,
-          train_sampler, dev_sampler, last_epoch);
+          model_dir, src_vocab, trg_vocab, model,
+          *opt, train_sampler, dev_sampler, last_epoch);
 
       std::cout << "Restart training." << std::endl;
       for (unsigned i = 0; i < num_epochs; ++i) trainer.train();

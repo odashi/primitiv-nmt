@@ -20,6 +20,7 @@ class Attention {
   Attention &operator=(const Attention &) = delete;
 
 public:
+  // New attention object.
   Attention(
     const std::string &name,
     unsigned encoder_size, unsigned decoder_size, unsigned hidden_size)
@@ -27,23 +28,29 @@ public:
     , ne_(encoder_size)
     , nd_(decoder_size)
     , nh_(hidden_size)
-    , pweh_(name_ + ".weh", {nh_, ne_}, primitiv::initializers::XavierUniform())
-    , pwdh_(name_ + ".wdh", {nh_, nd_}, primitiv::initializers::XavierUniform())
-    , pbh_(name_ + ".bh", {nh_}, primitiv::initializers::Constant(0))
-    , pwha_(name_ + ".wha", {1, nh_}, primitiv::initializers::XavierUniform())
+    , pweh_(name_ + ".w_eh", {nh_, ne_},
+        primitiv::initializers::XavierUniform())
+    , pwdh_(name_ + ".w_dh", {nh_, nd_},
+        primitiv::initializers::XavierUniform())
+    , pbh_(name_ + ".b_h", {nh_},
+        primitiv::initializers::Constant(0))
+    , pwha_(name_ + ".w_ha", {1, nh_},
+        primitiv::initializers::XavierUniform())
   {}
 
+  // Loads parameters from files.
   Attention(const std::string &name, const std::string &prefix)
     : name_(name)
-    , pweh_(primitiv::Parameter::load(prefix + name_ + ".weh"))
-    , pwdh_(primitiv::Parameter::load(prefix + name_ + ".wdh"))
-    , pbh_(primitiv::Parameter::load(prefix + name_ + ".bh"))
-    , pwha_(primitiv::Parameter::load(prefix + name_ + ".wha")) {
+    , pweh_(primitiv::Parameter::load(prefix + name_ + ".w_eh"))
+    , pwdh_(primitiv::Parameter::load(prefix + name_ + ".w_dh"))
+    , pbh_(primitiv::Parameter::load(prefix + name_ + ".b_h"))
+    , pwha_(primitiv::Parameter::load(prefix + name_ + ".w_ha")) {
       std::ifstream ifs;
       ::open_file(prefix + name_ + ".config", ifs);
       ifs >> ne_ >> nd_ >> nh_;
     }
 
+  // Saves parameters to files.
   void save(const std::string &prefix) const {
     pweh_.save(prefix + pweh_.name());
     pwdh_.save(prefix + pwdh_.name());
@@ -56,6 +63,7 @@ public:
     ofs << nh_ << std::endl;
   }
 
+  // Registers trainable parameters.
   void register_training(primitiv::Trainer &trainer) {
     trainer.add_parameter(pweh_);
     trainer.add_parameter(pwdh_);
@@ -63,12 +71,12 @@ public:
     trainer.add_parameter(pwha_);
   }
 
-  void init(const std::vector<primitiv::Node> &encoder_states) {
+  // Initializes internal states.
+  void init(const std::vector<primitiv::Node> &enc_states) {
     namespace F = primitiv::node_ops;
-    using primitiv::Node;
 
-    const Node weh = F::input(pweh_);
-    e_mat_ = F::concat(encoder_states, 1);  // ne_ x len
+    const auto weh = F::input(pweh_);
+    e_mat_ = F::concat(enc_states, 1);  // ne_ x len
     eh_mat_ = F::matmul(weh, e_mat_);  // nh_ x len
 
     wdh_ = F::input(pwdh_);
@@ -76,17 +84,18 @@ public:
     wha_ = F::input(pwha_);
   }
 
-  primitiv::Node get_probs(const primitiv::Node &decoder_state) {
+  // Calculates attention probabilities.
+  primitiv::Node get_probs(const primitiv::Node &dec_state) {
     namespace F = primitiv::node_ops;
-    using primitiv::Node;
 
-    const Node dh = F::matmul(wdh_, decoder_state) + bh_;  // nh_ x 1
-    const Node dh_bcast = F::broadcast(dh, 1, eh_mat_.shape()[1]);  // nh_ x len
-    const Node h = F::tanh(eh_mat_ + dh_bcast);
-    const Node a = F::transpose(F::matmul(wha_, h));  // len x 1
+    const auto dh = F::matmul(wdh_, dec_state) + bh_;  // nh_ x 1
+    const auto dh_bc = F::broadcast(dh, 1, eh_mat_.shape()[1]);  // nh_ x len
+    const auto h = F::tanh(eh_mat_ + dh_bc);
+    const auto a = F::transpose(F::matmul(wha_, h));  // len x 1
     return F::softmax(a, 0);
   }
 
+  // Calculates a context vector.
   primitiv::Node get_context(const primitiv::Node &att_probs) {
     return primitiv::node_ops::matmul(e_mat_, att_probs);
   }

@@ -101,7 +101,8 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       NMTTrainer trainer(
-          model_dir, trg_vocab, model, *opt, train_sampler, dev_sampler, 0);
+          model_dir, src_vocab, trg_vocab, model,
+          *opt, train_sampler, dev_sampler, 0);
 
       std::cout << "Saving initial model ... " << std::flush;
       trainer.save(

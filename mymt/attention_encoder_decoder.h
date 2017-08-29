@@ -8,6 +8,7 @@
 
 #include <primitiv/primitiv.h>
 
+#include "attention.h"
 #include "lstm.h"
 #include "utils.h"
 
@@ -18,12 +19,11 @@ class AttentionEncoderDecoder {
   float dropout_rate_;
   primitiv::Parameter pl_src_xe_, pl_trg_xe_;
   primitiv::Parameter pw_brd_fbd_, pb_brd_d_;
-  primitiv::Parameter pw_att_fbh_, pw_att_dh_, pb_att_h_, pw_att_ha_;
   primitiv::Parameter pw_dec_cdj_, pb_dec_j_, pw_dec_jy_, pb_dec_y_;
   ::LSTM rnn_fw_, rnn_bw_, rnn_dec_;
-  primitiv::Node fb_, fbh_, d_, j_;
+  ::Attention att_;
+  primitiv::Node d_, j_;
   primitiv::Node l_trg_xe_;
-  primitiv::Node w_att_dh_, b_att_h_, w_att_ha_;
   primitiv::Node w_dec_cdj_, b_dec_j_, w_dec_jy_, b_dec_y_;
 
   AttentionEncoderDecoder(const AttentionEncoderDecoder &) = delete;
@@ -48,14 +48,6 @@ public:
         primitiv::initializers::XavierUniform())
     , pb_brd_d_(name_ + ".b_brd_d", {hidden_size_},
         primitiv::initializers::Constant(0))
-    , pw_att_fbh_(name_ + ".w_att_fbh", {hidden_size_, 2 * hidden_size_},
-        primitiv::initializers::XavierUniform())
-    , pw_att_dh_(name_ + ".w_att_dh", {hidden_size_, hidden_size_},
-        primitiv::initializers::XavierUniform())
-    , pb_att_h_(name_ + ".b_att_h", {hidden_size},
-        primitiv::initializers::Constant(0))
-    , pw_att_ha_(name_ + ".w_att_ha", {1, hidden_size_},
-        primitiv::initializers::XavierUniform())
     , pw_dec_cdj_(name_ + ".w_dec_cdj", {embed_size_, 3 * hidden_size_},
         primitiv::initializers::XavierUniform())
     , pb_dec_j_(name_ + ".b_dec_j", {embed_size_},
@@ -66,7 +58,8 @@ public:
         primitiv::initializers::Constant(0))
     , rnn_fw_(name_ + ".rnn_fw", embed_size_, hidden_size_)
     , rnn_bw_(name_ + ".rnn_bw", embed_size_, hidden_size_)
-    , rnn_dec_(name_ + ".rnn_dec", 2 * embed_size_, hidden_size_) {}
+    , rnn_dec_(name_ + ".rnn_dec", 2 * embed_size_, hidden_size_)
+    , att_(name_ + ".att", 2 * hidden_size, hidden_size, hidden_size) {}
 
   // Loads all parameters.
   AttentionEncoderDecoder(const std::string &name, const std::string &prefix)
@@ -75,17 +68,14 @@ public:
     , pl_trg_xe_(primitiv::Parameter::load(prefix + name_ + ".l_trg_xe"))
     , pw_brd_fbd_(primitiv::Parameter::load(prefix + name_ + ".w_brd_fbd"))
     , pb_brd_d_(primitiv::Parameter::load(prefix + name_ + ".b_brd_d"))
-    , pw_att_fbh_(primitiv::Parameter::load(prefix + name_ + ".w_att_fbh"))
-    , pw_att_dh_(primitiv::Parameter::load(prefix + name_ + ".w_att_dh"))
-    , pb_att_h_(primitiv::Parameter::load(prefix + name_ + ".b_att_h"))
-    , pw_att_ha_(primitiv::Parameter::load(prefix + name_ + ".w_att_ha"))
     , pw_dec_cdj_(primitiv::Parameter::load(prefix + name_ + ".w_dec_cdj"))
     , pb_dec_j_(primitiv::Parameter::load(prefix + name_ + ".b_dec_j"))
     , pw_dec_jy_(primitiv::Parameter::load(prefix + name_ + ".w_dec_jy"))
     , pb_dec_y_(primitiv::Parameter::load(prefix + name_ + ".b_dec_y"))
     , rnn_fw_(name_ + ".rnn_fw", prefix)
     , rnn_bw_(name_ + ".rnn_bw", prefix)
-    , rnn_dec_(name_ + ".rnn_dec", prefix) {
+    , rnn_dec_(name_ + ".rnn_dec", prefix)
+    , att_(name_ + ".att", prefix) {
       std::ifstream ifs;
       ::open_file(prefix + name_ + ".config", ifs);
       ifs >> src_vocab_size_;
@@ -101,10 +91,6 @@ public:
     pl_trg_xe_.save(prefix + pl_trg_xe_.name());
     pw_brd_fbd_.save(prefix + pw_brd_fbd_.name());
     pb_brd_d_.save(prefix + pb_brd_d_.name());
-    pw_att_fbh_.save(prefix + pw_att_fbh_.name());
-    pw_att_dh_.save(prefix + pw_att_dh_.name());
-    pb_att_h_.save(prefix + pb_att_h_.name());
-    pw_att_ha_.save(prefix + pw_att_ha_.name());
     pw_dec_cdj_.save(prefix + pw_dec_cdj_.name());
     pb_dec_j_.save(prefix + pb_dec_j_.name());
     pw_dec_jy_.save(prefix + pw_dec_jy_.name());
@@ -112,6 +98,7 @@ public:
     rnn_fw_.save(prefix);
     rnn_bw_.save(prefix);
     rnn_dec_.save(prefix);
+    att_.save(prefix);
     std::ofstream ofs;
     ::open_file(prefix + name_ + ".config", ofs);
     ofs << src_vocab_size_ << std::endl;
@@ -127,10 +114,6 @@ public:
     trainer.add_parameter(pl_trg_xe_);
     trainer.add_parameter(pw_brd_fbd_);
     trainer.add_parameter(pb_brd_d_);
-    trainer.add_parameter(pw_att_fbh_);
-    trainer.add_parameter(pw_att_dh_);
-    trainer.add_parameter(pb_att_h_);
-    trainer.add_parameter(pw_att_ha_);
     trainer.add_parameter(pw_dec_cdj_);
     trainer.add_parameter(pb_dec_j_);
     trainer.add_parameter(pw_dec_jy_);
@@ -138,96 +121,87 @@ public:
     rnn_fw_.register_training(trainer);
     rnn_bw_.register_training(trainer);
     rnn_dec_.register_training(trainer);
+    att_.register_training(trainer);
   }
 
   // Applies RNN and dropout.
   primitiv::Node apply_rnn(::LSTM &rnn, const primitiv::Node &x, bool train) {
     namespace F = primitiv::node_ops;
-    using primitiv::Node;
 
-    Node xx = x;
+    auto xx = x;
     xx = F::dropout(xx, dropout_rate_, train);
-    Node y = rnn.forward(xx);
+    auto y = rnn.forward(xx);
     y = F::dropout(y, dropout_rate_, train);
     return y;
   }
 
   // Encodes source batch and initializes decoder states.
-  void encode(
-      const std::vector<std::vector<unsigned>> &src_batch, bool train) {
+  void encode(const std::vector<std::vector<unsigned>> &src_batch, bool train) {
     namespace F = primitiv::node_ops;
-    using primitiv::Node;
+
     const unsigned src_len = src_batch.size();
 
     // Source embedding
-    const Node l_src_xe = F::input(pl_src_xe_);
-    std::vector<Node> e_list;
+    const auto l_src_xe = F::input(pl_src_xe_);
+    std::vector<primitiv::Node> e_list;
     for (const auto &x : src_batch) {
       e_list.emplace_back(F::pick(l_src_xe, x, 1));
     }
 
     // Forward encoding
     rnn_fw_.init();
-    std::vector<Node> f_list;
-    for (unsigned i = 0; i < src_len; ++i) {
-      f_list.emplace_back(apply_rnn(rnn_fw_, e_list[i], train));
+    std::vector<primitiv::Node> f_list;
+    for (const auto &e : e_list) {
+      f_list.emplace_back(apply_rnn(rnn_fw_, e, train));
     }
 
     // Backward encoding
     rnn_bw_.init();
-    std::vector<Node> b_list;
-    for (unsigned i = src_len; i > 0; --i) {
-      b_list.emplace_back(apply_rnn(rnn_bw_, e_list[i - 1], train));
+    std::vector<primitiv::Node> b_list;
+    for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
+      b_list.emplace_back(apply_rnn(rnn_bw_, *it, train));
     }
     std::reverse(b_list.begin(), b_list.end());
 
     // Initializing decoder states
-    const Node w_brd_fbd = F::input(pw_brd_fbd_);
-    const Node b_brd_d = F::input(pb_brd_d_);
-    const Node last_fb = F::concat({rnn_fw_.get_c(), rnn_bw_.get_c()}, 0);
+    const auto w_brd_fbd = F::input(pw_brd_fbd_);
+    const auto b_brd_d = F::input(pb_brd_d_);
+    const auto last_fb = F::concat({rnn_fw_.get_c(), rnn_bw_.get_c()}, 0);
     rnn_dec_.init(F::matmul(w_brd_fbd, last_fb) + b_brd_d);
 
-    // Making matrix for calculatin attention
-    const Node w_att_fbh = F::input(pw_att_fbh_);
-    std::vector<Node> fb_list;
+    // Making matrix for calculating attention
+    std::vector<primitiv::Node> fb_list;
     for (unsigned i = 0; i < src_len; ++i) {
       fb_list.emplace_back(F::concat({f_list[i], b_list[i]}, 0));
     }
-    fb_ = F::concat(fb_list, 1);  // 2H x |src|
-    fbh_ = F::matmul(w_att_fbh, fb_);  // H x |src|
+    att_.init(fb_list);
+
+    // Initial output embedding (feeding) vector.
     j_ = F::zeros({embed_size_});
 
     // Other parameters
     l_trg_xe_ = F::input(pl_trg_xe_);
-    w_att_dh_ = F::input(pw_att_dh_);
-    b_att_h_ = F::input(pb_att_h_);
-    w_att_ha_ = F::input(pw_att_ha_);
     w_dec_cdj_ = F::input(pw_dec_cdj_);
     b_dec_j_ = F::input(pb_dec_j_);
     w_dec_jy_ = F::input(pw_dec_jy_);
     b_dec_y_ = F::input(pb_dec_y_);
   }
 
-  // Calculates next attention logits
+  // Calculates next attention probabilities
   primitiv::Node decode_atten(
       const std::vector<unsigned> &trg_words, bool train) {
     namespace F = primitiv::node_ops;
-    using primitiv::Node;
 
-    const Node e = F::pick(l_trg_xe_, trg_words, 1);
+    const auto e = F::pick(l_trg_xe_, trg_words, 1);
     d_ = apply_rnn(rnn_dec_, F::concat({e, j_}, 0), train);
-    const Node dh = F::matmul(w_att_dh_, d_) + b_att_h_;
-    const Node dh_bcast = F::broadcast(dh, 1, fbh_.shape()[1]); // H x |src|
-    const Node h = F::tanh(fbh_ + dh_bcast);
-    return F::transpose(F::matmul(w_att_ha_, h));  // |src| x 1
+    return att_.get_probs(d_);
   }
 
   // Calculates next words
-  primitiv::Node decode_word(const primitiv::Node &a_probs, bool train) {
+  primitiv::Node decode_word(const primitiv::Node &att_probs, bool train) {
     namespace F = primitiv::node_ops;
-    using primitiv::Node;
 
-    const Node c = F::matmul(fb_, a_probs);  // 2H
+    const auto c = att_.get_context(att_probs);
     j_ = F::tanh(F::matmul(w_dec_cdj_, F::concat({c, d_}, 0)) + b_dec_j_);
     return F::matmul(w_dec_jy_, j_) + b_dec_y_;
   }
@@ -236,13 +210,11 @@ public:
   primitiv::Node loss(
       const std::vector<std::vector<unsigned>> &trg_batch, bool train) {
     namespace F = primitiv::node_ops;
-    using primitiv::Node;
 
-    std::vector<Node> losses;
+    std::vector<primitiv::Node> losses;
     for (unsigned i = 0; i < trg_batch.size() - 1; ++i) {
-      const Node a_logits = decode_atten(trg_batch[i], train);
-      const Node a_probs = F::softmax(a_logits, 0);
-      const Node y = decode_word(a_probs, train);
+      const auto att_probs = decode_atten(trg_batch[i], train);
+      const auto y = decode_word(att_probs, train);
       losses.emplace_back(F::softmax_cross_entropy(y, trg_batch[i + 1], 0));
     }
     return F::batch::mean(F::sum(losses));
