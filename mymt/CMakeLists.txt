@@ -6,6 +6,8 @@ set(mymt_all_HDRS
   attention.h
   attention_encoder_decoder.h
   encoder_decoder.h
+  fixed_length_decoder.h
+  fld_utils.h
   lstm.h
   sampler.h
   nmt_utils.h
@@ -23,6 +25,7 @@ mymt_compile(dump_vocab)
 mymt_compile(make_corpus)
 mymt_compile(dump_corpus)
 mymt_compile(train_encdec)
+mymt_compile(train_fld)
 mymt_compile(resume_encdec)
 mymt_compile(test_encdec)
 mymt_compile(test_encdec_ensemble)

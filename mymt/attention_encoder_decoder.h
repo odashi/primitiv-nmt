@@ -1,5 +1,5 @@
-#ifndef MYMT_ENCODER_DECODER_H_
-#define MYMT_ENCODER_DECODER_H_
+#ifndef MYMT_ATTENTION_ENCODER_DECODER_H_
+#define MYMT_ATTENTION_ENCODER_DECODER_H_
 
 #include <algorithm>
 #include <fstream>
@@ -188,4 +188,4 @@ public:
   }
 };
 
-#endif  // MYMT_ENCODER_DECODER_H_
+#endif  // MYMT_ATTENTION_ENCODER_DECODER_H_
