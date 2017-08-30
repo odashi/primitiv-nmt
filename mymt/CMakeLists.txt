@@ -2,6 +2,7 @@ protobuf_generate_cpp(mymt_proto_SRCS mymt_proto_HDRS mymt.proto)
 
 set(mymt_all_HDRS
   ${mymt_proto_HDRS}
+  affine.h
   attention.h
   attention_encoder_decoder.h
   encoder_decoder.h

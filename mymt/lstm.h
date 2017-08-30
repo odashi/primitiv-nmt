@@ -24,6 +24,7 @@ class LSTM {
   primitiv::Node wxh_, whh_, bh_, h_, c_;
 
 public:
+  // New model.
   LSTM(
       const std::string &name,
       unsigned input_size, unsigned output_size,

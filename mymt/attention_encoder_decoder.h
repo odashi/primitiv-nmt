@@ -8,6 +8,7 @@
 
 #include <primitiv/primitiv.h>
 
+#include "affine.h"
 #include "attention.h"
 #include "lstm.h"
 #include "utils.h"
@@ -18,13 +19,11 @@ class AttentionEncoderDecoder {
   unsigned embed_size_, hidden_size_;
   float dropout_rate_;
   primitiv::Parameter pl_src_xe_, pl_trg_xe_;
-  primitiv::Parameter pw_brd_fbd_, pb_brd_d_;
-  primitiv::Parameter pw_dec_cdj_, pb_dec_j_, pw_dec_jy_, pb_dec_y_;
   ::LSTM rnn_fw_, rnn_bw_, rnn_dec_;
   ::Attention att_;
+  ::Affine aff_fbd_, aff_cdj_, aff_jy_;
   primitiv::Node d_, j_;
   primitiv::Node l_trg_xe_;
-  primitiv::Node w_dec_cdj_, b_dec_j_, w_dec_jy_, b_dec_y_;
 
   AttentionEncoderDecoder(const AttentionEncoderDecoder &) = delete;
   AttentionEncoderDecoder &operator=(const AttentionEncoderDecoder &) = delete;
@@ -44,38 +43,26 @@ public:
         primitiv::initializers::XavierUniform())
     , pl_trg_xe_(name_ + ".l_trg_xe", {embed_size_, trg_vocab_size_},
         primitiv::initializers::XavierUniform())
-    , pw_brd_fbd_(name_ + ".w_brd_fbd", {hidden_size_, 2 * hidden_size_},
-        primitiv::initializers::XavierUniform())
-    , pb_brd_d_(name_ + ".b_brd_d", {hidden_size_},
-        primitiv::initializers::Constant(0))
-    , pw_dec_cdj_(name_ + ".w_dec_cdj", {embed_size_, 3 * hidden_size_},
-        primitiv::initializers::XavierUniform())
-    , pb_dec_j_(name_ + ".b_dec_j", {embed_size_},
-        primitiv::initializers::Constant(0))
-    , pw_dec_jy_(name_ + ".w_dec_jy", {trg_vocab_size_, embed_size_},
-        primitiv::initializers::XavierUniform())
-    , pb_dec_y_(name_ + ".b_dec_y", {trg_vocab_size_},
-        primitiv::initializers::Constant(0))
     , rnn_fw_(name_ + ".rnn_fw", embed_size_, hidden_size_, dropout_rate_)
     , rnn_bw_(name_ + ".rnn_bw", embed_size_, hidden_size_, dropout_rate_)
     , rnn_dec_(name_ + ".rnn_dec", 2 * embed_size_, hidden_size_, dropout_rate_)
-    , att_(name_ + ".att", 2 * hidden_size, hidden_size, hidden_size) {}
+    , att_(name_ + ".att", 2 * hidden_size_, hidden_size_, hidden_size_)
+    , aff_fbd_(name_ + ".aff_fbd", 2 * hidden_size_, hidden_size_)
+    , aff_cdj_(name_ + ".aff_cdj", 3 * hidden_size_, embed_size_)
+    , aff_jy_(name_ + ".aff_jy", embed_size_, trg_vocab_size_) {}
 
   // Loads all parameters.
   AttentionEncoderDecoder(const std::string &name, const std::string &prefix)
     : name_(name)
     , pl_src_xe_(primitiv::Parameter::load(prefix + name_ + ".l_src_xe"))
     , pl_trg_xe_(primitiv::Parameter::load(prefix + name_ + ".l_trg_xe"))
-    , pw_brd_fbd_(primitiv::Parameter::load(prefix + name_ + ".w_brd_fbd"))
-    , pb_brd_d_(primitiv::Parameter::load(prefix + name_ + ".b_brd_d"))
-    , pw_dec_cdj_(primitiv::Parameter::load(prefix + name_ + ".w_dec_cdj"))
-    , pb_dec_j_(primitiv::Parameter::load(prefix + name_ + ".b_dec_j"))
-    , pw_dec_jy_(primitiv::Parameter::load(prefix + name_ + ".w_dec_jy"))
-    , pb_dec_y_(primitiv::Parameter::load(prefix + name_ + ".b_dec_y"))
     , rnn_fw_(name_ + ".rnn_fw", prefix)
     , rnn_bw_(name_ + ".rnn_bw", prefix)
     , rnn_dec_(name_ + ".rnn_dec", prefix)
-    , att_(name_ + ".att", prefix) {
+    , att_(name_ + ".att", prefix)
+    , aff_fbd_(name_ + ".aff_fbd", prefix)
+    , aff_cdj_(name_ + ".aff_cdj", prefix)
+    , aff_jy_(name_ + ".aff_jy", prefix) {
       std::ifstream ifs;
       ::open_file(prefix + name_ + ".config", ifs);
       ifs >> src_vocab_size_;
@@ -89,16 +76,13 @@ public:
   void save(const std::string &prefix) const {
     pl_src_xe_.save(prefix + pl_src_xe_.name());
     pl_trg_xe_.save(prefix + pl_trg_xe_.name());
-    pw_brd_fbd_.save(prefix + pw_brd_fbd_.name());
-    pb_brd_d_.save(prefix + pb_brd_d_.name());
-    pw_dec_cdj_.save(prefix + pw_dec_cdj_.name());
-    pb_dec_j_.save(prefix + pb_dec_j_.name());
-    pw_dec_jy_.save(prefix + pw_dec_jy_.name());
-    pb_dec_y_.save(prefix + pb_dec_y_.name());
     rnn_fw_.save(prefix);
     rnn_bw_.save(prefix);
     rnn_dec_.save(prefix);
     att_.save(prefix);
+    aff_fbd_.save(prefix);
+    aff_cdj_.save(prefix);
+    aff_jy_.save(prefix);
     std::ofstream ofs;
     ::open_file(prefix + name_ + ".config", ofs);
     ofs << src_vocab_size_ << std::endl;
@@ -112,16 +96,13 @@ public:
   void register_training(primitiv::Trainer &trainer) {
     trainer.add_parameter(pl_src_xe_);
     trainer.add_parameter(pl_trg_xe_);
-    trainer.add_parameter(pw_brd_fbd_);
-    trainer.add_parameter(pb_brd_d_);
-    trainer.add_parameter(pw_dec_cdj_);
-    trainer.add_parameter(pb_dec_j_);
-    trainer.add_parameter(pw_dec_jy_);
-    trainer.add_parameter(pb_dec_y_);
     rnn_fw_.register_training(trainer);
     rnn_bw_.register_training(trainer);
     rnn_dec_.register_training(trainer);
     att_.register_training(trainer);
+    aff_fbd_.register_training(trainer);
+    aff_cdj_.register_training(trainer);
+    aff_jy_.register_training(trainer);
   }
 
   // Encodes source batch and initializes decoder states.
@@ -153,11 +134,11 @@ public:
     std::reverse(b_list.begin(), b_list.end());
 
     // Initializing decoder states
-    const auto w_brd_fbd = F::input(pw_brd_fbd_);
-    const auto b_brd_d = F::input(pb_brd_d_);
+    aff_fbd_.init();
+    aff_cdj_.init();
+    aff_jy_.init();
     const auto last_fb = F::concat({rnn_fw_.get_c(), rnn_bw_.get_c()}, 0);
-    const auto init_d = F::matmul(w_brd_fbd, last_fb) + b_brd_d;
-    rnn_dec_.init(init_d, primitiv::Node(), train);
+    rnn_dec_.init(aff_fbd_.forward(last_fb), primitiv::Node(), train);
 
     // Making matrix for calculating attention
     std::vector<primitiv::Node> fb_list;
@@ -171,10 +152,6 @@ public:
 
     // Other parameters
     l_trg_xe_ = F::input(pl_trg_xe_);
-    w_dec_cdj_ = F::input(pw_dec_cdj_);
-    b_dec_j_ = F::input(pb_dec_j_);
-    w_dec_jy_ = F::input(pw_dec_jy_);
-    b_dec_y_ = F::input(pb_dec_y_);
   }
 
   // Calculates next attention probabilities
@@ -192,8 +169,8 @@ public:
     namespace F = primitiv::node_ops;
 
     const auto c = att_.get_context(att_probs);
-    j_ = F::tanh(F::matmul(w_dec_cdj_, F::concat({c, d_}, 0)) + b_dec_j_);
-    return F::matmul(w_dec_jy_, j_) + b_dec_y_;
+    j_ = F::tanh(aff_cdj_.forward(F::concat({c, d_}, 0)));
+    return aff_jy_.forward(j_);
   }
 
   // Calculates the loss function.
