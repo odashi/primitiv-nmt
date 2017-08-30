@@ -124,17 +124,6 @@ public:
     att_.register_training(trainer);
   }
 
-  // Applies RNN and dropout.
-  primitiv::Node apply_rnn(::LSTM &rnn, const primitiv::Node &x, bool train) {
-    namespace F = primitiv::node_ops;
-
-    auto xx = x;
-    xx = F::dropout(xx, dropout_rate_, train);
-    auto y = rnn.forward(xx);
-    y = F::dropout(y, dropout_rate_, train);
-    return y;
-  }
-
   // Encodes source batch and initializes decoder states.
   void encode(const std::vector<std::vector<unsigned>> &src_batch, bool train) {
     namespace F = primitiv::node_ops;
@@ -152,14 +141,14 @@ public:
     rnn_fw_.init(primitiv::Node(), primitiv::Node(), train);
     std::vector<primitiv::Node> f_list;
     for (const auto &e : e_list) {
-      f_list.emplace_back(apply_rnn(rnn_fw_, e, train));
+      f_list.emplace_back(rnn_fw_.forward(e, train));
     }
 
     // Backward encoding
     rnn_bw_.init(primitiv::Node(), primitiv::Node(), train);
     std::vector<primitiv::Node> b_list;
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
-      b_list.emplace_back(apply_rnn(rnn_bw_, *it, train));
+      b_list.emplace_back(rnn_bw_.forward(*it, train));
     }
     std::reverse(b_list.begin(), b_list.end());
 
@@ -194,7 +183,7 @@ public:
     namespace F = primitiv::node_ops;
 
     const auto e = F::pick(l_trg_xe_, trg_words, 1);
-    d_ = apply_rnn(rnn_dec_, F::concat({e, j_}, 0), train);
+    d_ = rnn_dec_.forward(F::concat({e, j_}, 0), train);
     return att_.get_probs(d_);
   }
 

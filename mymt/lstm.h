@@ -27,11 +27,11 @@ public:
   LSTM(
       const std::string &name,
       unsigned input_size, unsigned output_size,
-      float dropconnect_rate)
+      float dropout_rate)
     : name_(name)
     , ni_(input_size)
     , no_(output_size)
-    , dr_(dropconnect_rate)
+    , dr_(dropout_rate)
     , pwxh_(name_ + ".w_xh", {4 * no_, ni_},
         primitiv::initializers::XavierUniform())
     , pwhh_(name_ + ".w_hh", {4 * no_, no_},
@@ -73,27 +73,27 @@ public:
   void init(
       const primitiv::Node &init_c,
       const primitiv::Node &init_h,
-      float train) {
+      bool train) {
     namespace F = primitiv::node_ops;
     wxh_ = F::input(pwxh_);
-    whh_ = F::input(pwhh_);
-    whh_ = F::dropout(whh_, dr_, train);
+    whh_ = F::dropout(F::input(pwhh_), dr_, train);
     bh_ = F::input(pbh_);
     c_ = init_c.valid() ? init_c : F::zeros({no_});
     h_ = init_h.valid() ? init_h : F::tanh(c_);
   }
 
   // One step forwarding.
-  primitiv::Node forward(const primitiv::Node &x) {
+  primitiv::Node forward(const primitiv::Node &x, bool train) {
     namespace F = primitiv::node_ops;
-    const primitiv::Node u = F::matmul(wxh_, x) + F::matmul(whh_, h_) + bh_;
-    const primitiv::Node i = F::sigmoid(F::slice(u, 0, 0, no_));
-    const primitiv::Node f = F::sigmoid(1 + F::slice(u, 0, no_, 2 * no_));
-    const primitiv::Node o = F::sigmoid(F::slice(u, 0, 2 * no_, 3 * no_));
-    const primitiv::Node j = F::tanh(F::slice(u, 0, 3 * no_, 4 * no_));
+    const auto xx = F::dropout(x, dr_, train);
+    const auto u = F::matmul(wxh_, xx) + F::matmul(whh_, h_) + bh_;
+    const auto i = F::sigmoid(F::slice(u, 0, 0, no_));
+    const auto f = F::sigmoid(1 + F::slice(u, 0, no_, 2 * no_));
+    const auto o = F::sigmoid(F::slice(u, 0, 2 * no_, 3 * no_));
+    const auto j = F::tanh(F::slice(u, 0, 3 * no_, 4 * no_));
     c_ = i * j + f * c_;
     h_ = o * F::tanh(c_);
-    return h_;
+    return F::dropout(h_, dr_, train);
   }
 
   // Retrieves current states.
