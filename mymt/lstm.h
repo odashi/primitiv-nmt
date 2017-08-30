@@ -19,14 +19,19 @@
 class LSTM {
   std::string name_;
   unsigned ni_, no_;
+  float dr_;
   primitiv::Parameter pwxh_, pwhh_, pbh_;
   primitiv::Node wxh_, whh_, bh_, h_, c_;
 
 public:
-  LSTM(const std::string &name, unsigned input_size, unsigned output_size)
+  LSTM(
+      const std::string &name,
+      unsigned input_size, unsigned output_size,
+      float dropconnect_rate)
     : name_(name)
     , ni_(input_size)
     , no_(output_size)
+    , dr_(dropconnect_rate)
     , pwxh_(name_ + ".w_xh", {4 * no_, ni_},
         primitiv::initializers::XavierUniform())
     , pwhh_(name_ + ".w_hh", {4 * no_, no_},
@@ -42,18 +47,19 @@ public:
     , pbh_(primitiv::Parameter::load(prefix + name_ + ".b_h")) {
       std::ifstream ifs;
       ::open_file(prefix + name_ + ".config", ifs);
-      ifs >> ni_ >> no_;
+      ifs >> ni_ >> no_ >> dr_;
   }
 
   // Saves all parameters.
   void save(const std::string &prefix) const {
+    pwxh_.save(prefix + pwxh_.name());
+    pwhh_.save(prefix + pwhh_.name());
+    pbh_.save(prefix + pbh_.name());
     std::ofstream ofs;
     ::open_file(prefix + name_ + ".config", ofs);
     ofs << ni_ << std::endl;
     ofs << no_ << std::endl;
-    pwxh_.save(prefix + pwxh_.name());
-    pwhh_.save(prefix + pwhh_.name());
-    pbh_.save(prefix + pbh_.name());
+    ofs << dr_ << std::endl;
   }
 
   // Adds parameters to the trainer.
@@ -65,11 +71,13 @@ public:
 
   // Initializes internal values.
   void init(
-      const primitiv::Node &init_c = primitiv::Node(),
-      const primitiv::Node &init_h = primitiv::Node()) {
+      const primitiv::Node &init_c,
+      const primitiv::Node &init_h,
+      float train) {
     namespace F = primitiv::node_ops;
     wxh_ = F::input(pwxh_);
     whh_ = F::input(pwhh_);
+    whh_ = F::dropout(whh_, dr_, train);
     bh_ = F::input(pbh_);
     c_ = init_c.valid() ? init_c : F::zeros({no_});
     h_ = init_h.valid() ? init_h : F::tanh(c_);

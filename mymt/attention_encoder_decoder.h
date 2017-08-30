@@ -56,9 +56,9 @@ public:
         primitiv::initializers::XavierUniform())
     , pb_dec_y_(name_ + ".b_dec_y", {trg_vocab_size_},
         primitiv::initializers::Constant(0))
-    , rnn_fw_(name_ + ".rnn_fw", embed_size_, hidden_size_)
-    , rnn_bw_(name_ + ".rnn_bw", embed_size_, hidden_size_)
-    , rnn_dec_(name_ + ".rnn_dec", 2 * embed_size_, hidden_size_)
+    , rnn_fw_(name_ + ".rnn_fw", embed_size_, hidden_size_, dropout_rate_)
+    , rnn_bw_(name_ + ".rnn_bw", embed_size_, hidden_size_, dropout_rate_)
+    , rnn_dec_(name_ + ".rnn_dec", 2 * embed_size_, hidden_size_, dropout_rate_)
     , att_(name_ + ".att", 2 * hidden_size, hidden_size, hidden_size) {}
 
   // Loads all parameters.
@@ -149,14 +149,14 @@ public:
     }
 
     // Forward encoding
-    rnn_fw_.init();
+    rnn_fw_.init(primitiv::Node(), primitiv::Node(), train);
     std::vector<primitiv::Node> f_list;
     for (const auto &e : e_list) {
       f_list.emplace_back(apply_rnn(rnn_fw_, e, train));
     }
 
     // Backward encoding
-    rnn_bw_.init();
+    rnn_bw_.init(primitiv::Node(), primitiv::Node(), train);
     std::vector<primitiv::Node> b_list;
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
       b_list.emplace_back(apply_rnn(rnn_bw_, *it, train));
@@ -167,7 +167,8 @@ public:
     const auto w_brd_fbd = F::input(pw_brd_fbd_);
     const auto b_brd_d = F::input(pb_brd_d_);
     const auto last_fb = F::concat({rnn_fw_.get_c(), rnn_bw_.get_c()}, 0);
-    rnn_dec_.init(F::matmul(w_brd_fbd, last_fb) + b_brd_d);
+    const auto init_d = F::matmul(w_brd_fbd, last_fb) + b_brd_d;
+    rnn_dec_.init(init_d, primitiv::Node(), train);
 
     // Making matrix for calculating attention
     std::vector<primitiv::Node> fb_list;
