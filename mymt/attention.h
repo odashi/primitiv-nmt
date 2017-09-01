@@ -73,20 +73,21 @@ public:
 
   // Initializes internal states.
   void init(const std::vector<primitiv::Node> &enc_states) {
-    namespace F = primitiv::node_ops;
+    namespace F = primitiv::operators;
+    using primitiv::Node;
 
-    const auto weh = F::input(pweh_);
+    const auto weh = F::input<Node>(pweh_);
     e_mat_ = F::concat(enc_states, 1);  // ne_ x len
     eh_mat_ = F::matmul(weh, e_mat_);  // nh_ x len
 
-    wdh_ = F::input(pwdh_);
-    bh_ = F::input(pbh_);
-    wha_ = F::input(pwha_);
+    wdh_ = F::input<Node>(pwdh_);
+    bh_ = F::input<Node>(pbh_);
+    wha_ = F::input<Node>(pwha_);
   }
 
   // Calculates attention probabilities.
   primitiv::Node get_probs(const primitiv::Node &dec_state) {
-    namespace F = primitiv::node_ops;
+    namespace F = primitiv::operators;
 
     const auto dh = F::matmul(wdh_, dec_state) + bh_;  // nh_ x 1
     const auto dh_bc = F::broadcast(dh, 1, eh_mat_.shape()[1]);  // nh_ x len
@@ -97,7 +98,7 @@ public:
 
   // Calculates a context vector.
   primitiv::Node get_context(const primitiv::Node &att_probs) {
-    return primitiv::node_ops::matmul(e_mat_, att_probs);
+    return primitiv::operators::matmul(e_mat_, att_probs);
   }
 };
 

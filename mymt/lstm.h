@@ -75,17 +75,18 @@ public:
       const primitiv::Node &init_c,
       const primitiv::Node &init_h,
       bool train) {
-    namespace F = primitiv::node_ops;
-    wxh_ = F::input(pwxh_);
-    whh_ = F::dropout(F::input(pwhh_), dr_, train);
-    bh_ = F::input(pbh_);
-    c_ = init_c.valid() ? init_c : F::zeros({no_});
+    namespace F = primitiv::operators;
+    using primitiv::Node;
+    wxh_ = F::input<Node>(pwxh_);
+    whh_ = F::dropout(F::input<Node>(pwhh_), dr_, train);
+    bh_ = F::input<Node>(pbh_);
+    c_ = init_c.valid() ? init_c : F::zeros<Node>({no_});
     h_ = init_h.valid() ? init_h : F::tanh(c_);
   }
 
   // One step forwarding.
   primitiv::Node forward(const primitiv::Node &x, bool train) {
-    namespace F = primitiv::node_ops;
+    namespace F = primitiv::operators;
     const auto xx = F::dropout(x, dr_, train);
     const auto u = F::matmul(wxh_, xx) + F::matmul(whh_, h_) + bh_;
     const auto i = F::sigmoid(F::slice(u, 0, 0, no_));

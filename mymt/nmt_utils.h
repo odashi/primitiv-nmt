@@ -23,7 +23,7 @@ inline ::Result infer_sentence(
     unsigned bos_id, unsigned eos_id,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
-  namespace F = primitiv::node_ops;
+  namespace F = primitiv::operators;
 
   // Initialize the model
   primitiv::Graph g;
@@ -56,7 +56,7 @@ inline ::Result infer_sentence_ensemble(
     unsigned bos_id, unsigned eos_id,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
-  namespace F = primitiv::node_ops;
+  namespace F = primitiv::operators;
 
   // Initialize the model
   primitiv::Graph g;
@@ -104,7 +104,7 @@ inline ::Result infer_sentence_ensemble2(
     unsigned bos_id, unsigned eos_id,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
-  namespace F = primitiv::node_ops;
+  namespace F = primitiv::operators;
 
   // Initialize the model
   primitiv::Graph g;

@@ -110,28 +110,29 @@ public:
 
   // Encodes source batch and initializes decoder states.
   void encode(const std::vector<std::vector<unsigned>> &src_batch, bool train) {
-    namespace F = primitiv::node_ops;
+    namespace F = primitiv::operators;
+    using primitiv::Node;
 
     const unsigned src_len = src_batch.size();
-    const primitiv::Node invalid;
+    const Node invalid;
 
     // Source embedding
-    const auto l_src_xe = F::input(pl_src_xe_);
-    std::vector<primitiv::Node> e_list;
+    const auto l_src_xe = F::input<Node>(pl_src_xe_);
+    std::vector<Node> e_list;
     for (const auto &x : src_batch) {
       e_list.emplace_back(F::pick(l_src_xe, x, 1));
     }
 
     // Forward encoding
     rnn_enc_fw_.init(invalid, invalid, train);
-    std::vector<primitiv::Node> f_list;
+    std::vector<Node> f_list;
     for (const auto &e : e_list) {
       f_list.emplace_back(rnn_enc_fw_.forward(e, train));
     }
 
     // Backward encoding
     rnn_enc_bw_.init(invalid, invalid, train);
-    std::vector<primitiv::Node> b_list;
+    std::vector<Node> b_list;
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
       b_list.emplace_back(rnn_enc_bw_.forward(*it, train));
     }
@@ -148,44 +149,45 @@ public:
     rnn_dec_bw_.init(F::slice(init_dec_fb, 0, nh_, 2 * nh_), invalid, train);
 
     // Making matrix for calculating attention (ignoring <bos> and <eos>)
-    std::vector<primitiv::Node> fb_list;
+    std::vector<Node> fb_list;
     for (unsigned i = 1; i < src_len - 1; ++i) {
       fb_list.emplace_back(F::concat({f_list[i], b_list[i]}, 0));
     }
     att_.init(fb_list);
 
     // Other parameters.
-    l_trg_xe_ = F::input(pl_trg_xe_);
+    l_trg_xe_ = F::input<Node>(pl_trg_xe_);
   }
 
   // Calculates loss function.
   primitiv::Node loss(
       const std::vector<std::vector<unsigned>> &trg_batch, bool train) {
-    namespace F = primitiv::node_ops;
+    namespace F = primitiv::operators;
+    using primitiv::Node;
 
     const unsigned trg_len = trg_batch.size();
 
     // Target embedding
-    std::vector<primitiv::Node> e_list;
+    std::vector<Node> e_list;
     for (const auto &x : trg_batch) {
       e_list.emplace_back(F::pick(l_trg_xe_, x, 1));
     }
 
     // Forward RNN
-    std::vector<primitiv::Node> f_list;
+    std::vector<Node> f_list;
     for (const auto &e : e_list) {
       f_list.emplace_back(rnn_dec_fw_.forward(e, train));
     }
 
     // Backward RNN
-    std::vector<primitiv::Node> b_list;
+    std::vector<Node> b_list;
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
       b_list.emplace_back(rnn_dec_bw_.forward(*it, train));
     }
     std::reverse(b_list.begin(), b_list.end());
 
     // Calculates losses (ignoring <bos> and <eos>)
-    std::vector<primitiv::Node> losses;
+    std::vector<Node> losses;
     for (unsigned i = 1; i < trg_len - 1; ++i) {
       const auto d = F::concat({f_list[i - 1], b_list[i + 1]}, 0);
       const auto a_probs = att_.get_probs(d);

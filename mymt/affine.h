@@ -52,14 +52,15 @@ public:
 
   // Initializes internal values.
   void init() {
-    namespace F = primitiv::node_ops;
-    w_ = F::input(pw_);
-    b_ = F::input(pb_);
+    namespace F = primitiv::operators;
+    using primitiv::Node;
+    w_ = F::input<Node>(pw_);
+    b_ = F::input<Node>(pb_);
   }
 
   // Applies transformation.
   primitiv::Node forward(const primitiv::Node &x) {
-    return primitiv::node_ops::matmul(w_, x) + b_;
+    return primitiv::operators::matmul(w_, x) + b_;
   }
 
   // Retrieves hyperparameters.
