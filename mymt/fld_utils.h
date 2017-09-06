@@ -1,5 +1,5 @@
-#ifndef MYMT_NMT_UTILS_H_
-#define MYMT_NMT_UTILS_H_
+#ifndef MYMT_FLD_UTILS_H_
+#define MYMT_FLD_UTILS_H_
 
 #include <iostream>
 #include <memory>
@@ -114,7 +114,7 @@ inline std::string make_hyp_str(
 }
  */
 
-class NMTTrainer {
+class FLDTrainer {
   const std::string model_dir_;
   const ::Vocabulary &src_vocab_;
   const ::Vocabulary &trg_vocab_;
@@ -182,7 +182,7 @@ class NMTTrainer {
   */
 
 public:
-  NMTTrainer(
+  FLDTrainer(
       const std::string &model_dir,
       const ::Vocabulary &src_vocab,
       const ::Vocabulary &trg_vocab,
@@ -245,4 +245,4 @@ public:
   }
 };
 
-#endif  // MYMT_NMT_UTILS_H_
+#endif  // MYMT_FLD_UTILS_H_
