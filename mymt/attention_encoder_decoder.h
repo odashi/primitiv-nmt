@@ -13,17 +13,18 @@
 #include "lstm.h"
 #include "utils.h"
 
+template<typename Var>
 class AttentionEncoderDecoder {
   std::string name_;
   unsigned src_vocab_size_, trg_vocab_size_;
   unsigned embed_size_, hidden_size_;
   float dropout_rate_;
   primitiv::Parameter pl_src_xe_, pl_trg_xe_;
-  ::LSTM rnn_fw_, rnn_bw_, rnn_dec_;
-  ::Attention att_;
-  ::Affine aff_fbd_, aff_cdj_, aff_jy_;
-  primitiv::Node d_, j_;
-  primitiv::Node l_trg_xe_;
+  ::LSTM<Var> rnn_fw_, rnn_bw_, rnn_dec_;
+  ::Attention<Var> att_;
+  ::Affine<Var> aff_fbd_, aff_cdj_, aff_jy_;
+  Var d_, j_;
+  Var l_trg_xe_;
 
   AttentionEncoderDecoder(const AttentionEncoderDecoder &) = delete;
   AttentionEncoderDecoder &operator=(const AttentionEncoderDecoder &) = delete;
@@ -108,28 +109,27 @@ public:
   // Encodes source batch and initializes decoder states.
   void encode(const std::vector<std::vector<unsigned>> &src_batch, bool train) {
     namespace F = primitiv::operators;
-    using primitiv::Node;
 
     const unsigned src_len = src_batch.size();
-    const Node invalid;
+    const Var invalid;
 
     // Source embedding
-    const auto l_src_xe = F::input<Node>(pl_src_xe_);
-    std::vector<Node> e_list;
+    const auto l_src_xe = F::input<Var>(pl_src_xe_);
+    std::vector<Var> e_list;
     for (const auto &x : src_batch) {
       e_list.emplace_back(F::pick(l_src_xe, x, 1));
     }
 
     // Forward encoding
     rnn_fw_.init(invalid, invalid, train);
-    std::vector<Node> f_list;
+    std::vector<Var> f_list;
     for (const auto &e : e_list) {
       f_list.emplace_back(rnn_fw_.forward(e, train));
     }
 
     // Backward encoding
     rnn_bw_.init(invalid, invalid, train);
-    std::vector<Node> b_list;
+    std::vector<Var> b_list;
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
       b_list.emplace_back(rnn_bw_.forward(*it, train));
     }
@@ -143,22 +143,21 @@ public:
     rnn_dec_.init(aff_fbd_.forward(last_fb), invalid, train);
 
     // Making matrix for calculating attention
-    std::vector<Node> fb_list;
+    std::vector<Var> fb_list;
     for (unsigned i = 0; i < src_len; ++i) {
       fb_list.emplace_back(F::concat({f_list[i], b_list[i]}, 0));
     }
     att_.init(fb_list);
 
     // Initial output embedding (feeding) vector.
-    j_ = F::zeros<Node>({embed_size_});
+    j_ = F::zeros<Var>({embed_size_});
 
     // Other parameters
-    l_trg_xe_ = F::input<Node>(pl_trg_xe_);
+    l_trg_xe_ = F::input<Var>(pl_trg_xe_);
   }
 
   // Calculates next attention probabilities
-  primitiv::Node decode_atten(
-      const std::vector<unsigned> &trg_words, bool train) {
+  Var decode_atten(const std::vector<unsigned> &trg_words, bool train) {
     namespace F = primitiv::operators;
 
     const auto e = F::pick(l_trg_xe_, trg_words, 1);
@@ -167,7 +166,7 @@ public:
   }
 
   // Calculates next words
-  primitiv::Node decode_word(const primitiv::Node &att_probs, bool train) {
+  Var decode_word(const Var &att_probs, bool train) {
     namespace F = primitiv::operators;
 
     const auto c = att_.get_context(att_probs);
@@ -176,11 +175,10 @@ public:
   }
 
   // Calculates the loss function.
-  primitiv::Node loss(
-      const std::vector<std::vector<unsigned>> &trg_batch, bool train) {
+  Var loss(const std::vector<std::vector<unsigned>> &trg_batch, bool train) {
     namespace F = primitiv::operators;
 
-    std::vector<primitiv::Node> losses;
+    std::vector<Var> losses;
     for (unsigned i = 0; i < trg_batch.size() - 1; ++i) {
       const auto att_probs = decode_atten(trg_batch[i], train);
       const auto y = decode_word(att_probs, train);

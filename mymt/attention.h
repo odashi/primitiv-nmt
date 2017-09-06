@@ -10,11 +10,12 @@
 #include "utils.h"
 
 // Multilayer perceptron-based attention
+template<typename Var>
 class Attention {
   std::string name_;
   unsigned ne_, nd_, nh_;
   primitiv::Parameter pweh_, pwdh_, pbh_, pwha_;
-  primitiv::Node e_mat_, eh_mat_, wdh_, bh_, wha_;
+  Var e_mat_, eh_mat_, wdh_, bh_, wha_;
 
   Attention(const Attention &) = delete;
   Attention &operator=(const Attention &) = delete;
@@ -72,21 +73,20 @@ public:
   }
 
   // Initializes internal states.
-  void init(const std::vector<primitiv::Node> &enc_states) {
+  void init(const std::vector<Var> &enc_states) {
     namespace F = primitiv::operators;
-    using primitiv::Node;
 
-    const auto weh = F::input<Node>(pweh_);
+    const auto weh = F::input<Var>(pweh_);
     e_mat_ = F::concat(enc_states, 1);  // ne_ x len
     eh_mat_ = F::matmul(weh, e_mat_);  // nh_ x len
 
-    wdh_ = F::input<Node>(pwdh_);
-    bh_ = F::input<Node>(pbh_);
-    wha_ = F::input<Node>(pwha_);
+    wdh_ = F::input<Var>(pwdh_);
+    bh_ = F::input<Var>(pbh_);
+    wha_ = F::input<Var>(pwha_);
   }
 
   // Calculates attention probabilities.
-  primitiv::Node get_probs(const primitiv::Node &dec_state) {
+  Var get_probs(const Var &dec_state) {
     namespace F = primitiv::operators;
 
     const auto dh = F::matmul(wdh_, dec_state) + bh_;  // nh_ x 1
@@ -97,7 +97,7 @@ public:
   }
 
   // Calculates a context vector.
-  primitiv::Node get_context(const primitiv::Node &att_probs) {
+  Var get_context(const Var &att_probs) {
     return primitiv::operators::matmul(e_mat_, att_probs);
   }
 };

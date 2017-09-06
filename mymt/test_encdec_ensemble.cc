@@ -66,11 +66,11 @@ int main(int argc, char *argv[]) {
             new primitiv::CPUDevice()));
 #endif
 
-      std::vector<std::unique_ptr<::AttentionEncoderDecoder>> models;
+      std::vector<std::unique_ptr<::AttentionEncoderDecoder<primitiv::Tensor>>> models;
       for (unsigned i = 0; i < subdirs.size(); ++i) {
         primitiv::Device::set_default_device(*devs[i % devs.size()]);
-        models.emplace_back(std::unique_ptr<::AttentionEncoderDecoder>(
-              new AttentionEncoderDecoder("encdec", subdirs[i] + "/model.")));
+        models.emplace_back(std::unique_ptr<::AttentionEncoderDecoder<primitiv::Tensor>>(
+              new AttentionEncoderDecoder<primitiv::Tensor>("encdec", subdirs[i] + "/model.")));
       }
 
       std::string line;
@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
           src_batch.emplace_back(std::vector<unsigned> {src_id});
         }
 
-        const ::Result ret = ::infer_sentence_ensemble2(
+        const ::Result ret = ::infer_sentence_ensemble(
             devs, models, bos_id, eos_id, src_batch, 64);
         const std::string hyp_str = ::make_hyp_str(ret, trg_vocab);
 

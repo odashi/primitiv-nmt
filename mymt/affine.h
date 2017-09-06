@@ -9,11 +9,12 @@
 #include "utils.h"
 
 // Affine transform
+template<typename Var>
 class Affine {
   std::string name_;
   unsigned ni_, no_;
   primitiv::Parameter pw_, pb_;
-  primitiv::Node w_, b_;
+  Var w_, b_;
 
 public:
   // New model.
@@ -53,13 +54,12 @@ public:
   // Initializes internal values.
   void init() {
     namespace F = primitiv::operators;
-    using primitiv::Node;
-    w_ = F::input<Node>(pw_);
-    b_ = F::input<Node>(pb_);
+    w_ = F::input<Var>(pw_);
+    b_ = F::input<Var>(pb_);
   }
 
   // Applies transformation.
-  primitiv::Node forward(const primitiv::Node &x) {
+  Var forward(const Var &x) {
     return primitiv::operators::matmul(w_, x) + b_;
   }
 

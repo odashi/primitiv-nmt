@@ -13,16 +13,17 @@
 #include "lstm.h"
 #include "utils.h"
 
+template<typename Var>
 class FixedLengthDecoder {
   std::string name_;
   unsigned nv_src_, nv_trg_;
   unsigned ne_, nh_;
   float dr_;
   primitiv::Parameter pl_src_xe_, pl_trg_xe_;
-  ::LSTM rnn_enc_fw_, rnn_enc_bw_, rnn_dec_fw_, rnn_dec_bw_;
-  ::Attention att_;
-  ::Affine aff_ed_, aff_cdj_, aff_jy_;
-  primitiv::Node l_trg_xe_;
+  ::LSTM<Var> rnn_enc_fw_, rnn_enc_bw_, rnn_dec_fw_, rnn_dec_bw_;
+  ::Attention<Var> att_;
+  ::Affine<Var> aff_ed_, aff_cdj_, aff_jy_;
+  Var l_trg_xe_;
 
   FixedLengthDecoder(const FixedLengthDecoder &) = delete;
   FixedLengthDecoder &operator=(const FixedLengthDecoder &) = delete;
@@ -111,28 +112,27 @@ public:
   // Encodes source batch and initializes decoder states.
   void encode(const std::vector<std::vector<unsigned>> &src_batch, bool train) {
     namespace F = primitiv::operators;
-    using primitiv::Node;
 
     const unsigned src_len = src_batch.size();
-    const Node invalid;
+    const Var invalid;
 
     // Source embedding
-    const auto l_src_xe = F::input<Node>(pl_src_xe_);
-    std::vector<Node> e_list;
+    const auto l_src_xe = F::input<Var>(pl_src_xe_);
+    std::vector<Var> e_list;
     for (const auto &x : src_batch) {
       e_list.emplace_back(F::pick(l_src_xe, x, 1));
     }
 
     // Forward encoding
     rnn_enc_fw_.init(invalid, invalid, train);
-    std::vector<Node> f_list;
+    std::vector<Var> f_list;
     for (const auto &e : e_list) {
       f_list.emplace_back(rnn_enc_fw_.forward(e, train));
     }
 
     // Backward encoding
     rnn_enc_bw_.init(invalid, invalid, train);
-    std::vector<Node> b_list;
+    std::vector<Var> b_list;
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
       b_list.emplace_back(rnn_enc_bw_.forward(*it, train));
     }
@@ -149,45 +149,43 @@ public:
     rnn_dec_bw_.init(F::slice(init_dec_fb, 0, nh_, 2 * nh_), invalid, train);
 
     // Making matrix for calculating attention (ignoring <bos> and <eos>)
-    std::vector<Node> fb_list;
+    std::vector<Var> fb_list;
     for (unsigned i = 1; i < src_len - 1; ++i) {
       fb_list.emplace_back(F::concat({f_list[i], b_list[i]}, 0));
     }
     att_.init(fb_list);
 
     // Other parameters.
-    l_trg_xe_ = F::input<Node>(pl_trg_xe_);
+    l_trg_xe_ = F::input<Var>(pl_trg_xe_);
   }
 
   // Calculates loss function.
-  primitiv::Node loss(
-      const std::vector<std::vector<unsigned>> &trg_batch, bool train) {
+  Var loss(const std::vector<std::vector<unsigned>> &trg_batch, bool train) {
     namespace F = primitiv::operators;
-    using primitiv::Node;
 
     const unsigned trg_len = trg_batch.size();
 
     // Target embedding
-    std::vector<Node> e_list;
+    std::vector<Var> e_list;
     for (const auto &x : trg_batch) {
       e_list.emplace_back(F::pick(l_trg_xe_, x, 1));
     }
 
     // Forward RNN
-    std::vector<Node> f_list;
+    std::vector<Var> f_list;
     for (const auto &e : e_list) {
       f_list.emplace_back(rnn_dec_fw_.forward(e, train));
     }
 
     // Backward RNN
-    std::vector<Node> b_list;
+    std::vector<Var> b_list;
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
       b_list.emplace_back(rnn_dec_bw_.forward(*it, train));
     }
     std::reverse(b_list.begin(), b_list.end());
 
     // Calculates losses (ignoring <bos> and <eos>)
-    std::vector<Node> losses;
+    std::vector<Var> losses;
     for (unsigned i = 1; i < trg_len - 1; ++i) {
       const auto d = F::concat({f_list[i - 1], b_list[i + 1]}, 0);
       const auto a_probs = att_.get_probs(d);

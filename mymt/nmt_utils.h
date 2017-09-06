@@ -18,16 +18,15 @@ struct Result {
   std::vector<std::vector<float>> atten_probs;
 };
 
+template<typename Var>
 inline ::Result infer_sentence(
-    ::AttentionEncoderDecoder &model,
+    ::AttentionEncoderDecoder<Var> &model,
     unsigned bos_id, unsigned eos_id,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
   namespace F = primitiv::operators;
 
   // Initialize the model
-  primitiv::Graph g;
-  primitiv::Graph::set_default_graph(g);
   model.encode(src_batch, false);
 
   ::Result ret { {bos_id}, {} };
@@ -36,10 +35,10 @@ inline ::Result infer_sentence(
   while (ret.word_ids.back() != eos_id) {
     const std::vector<unsigned> prev {ret.word_ids.back()};
     const auto a_probs = model.decode_atten(prev, false);
-    ret.atten_probs.emplace_back(g.forward(a_probs).to_vector());
+    ret.atten_probs.emplace_back(a_probs.to_vector());
 
     const auto scores = model.decode_word(a_probs, false);
-    ret.word_ids.emplace_back(::argmax(g.forward(scores).to_vector()));
+    ret.word_ids.emplace_back(::argmax(scores.to_vector()));
 
     if (ret.word_ids.size() == limit + 1) {
       ret.word_ids.emplace_back(eos_id);
@@ -50,17 +49,16 @@ inline ::Result infer_sentence(
   return ret;
 }
 
+template<typename Var>
 inline ::Result infer_sentence_ensemble(
     std::vector<std::unique_ptr<primitiv::Device>> &devs,
-    std::vector<std::unique_ptr<::AttentionEncoderDecoder>> &models,
+    std::vector<std::unique_ptr<::AttentionEncoderDecoder<Var>>> &models,
     unsigned bos_id, unsigned eos_id,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
   namespace F = primitiv::operators;
 
   // Initialize the model
-  primitiv::Graph g;
-  primitiv::Graph::set_default_graph(g);
   for (unsigned i = 0; i < models.size(); ++i) {
     primitiv::Device::set_default_device(*devs[i % devs.size()]);
     models[i]->encode(src_batch, false);
@@ -70,8 +68,8 @@ inline ::Result infer_sentence_ensemble(
 
   // Decode
   while (ret.word_ids.back() != eos_id) {
-    std::vector<primitiv::Node> a_probs_list;
-    std::vector<primitiv::Node> scores_list;
+    std::vector<Var> a_probs_list;
+    std::vector<Var> scores_list;
     const std::vector<unsigned> prev {ret.word_ids.back()};
 
     for (unsigned i = 0; i < models.size(); ++i) {
@@ -86,58 +84,8 @@ inline ::Result infer_sentence_ensemble(
     const auto a_probs_mean = F::mean(a_probs_list);
     const auto scores_sum = F::sum(scores_list);
 
-    ret.atten_probs.emplace_back(g.forward(a_probs_mean).to_vector());
-    ret.word_ids.emplace_back(::argmax(g.forward(scores_sum).to_vector()));
-
-    if (ret.word_ids.size() == limit + 1) {
-      ret.word_ids.emplace_back(eos_id);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-inline ::Result infer_sentence_ensemble2(
-    std::vector<std::unique_ptr<primitiv::Device>> &devs,
-    std::vector<std::unique_ptr<::AttentionEncoderDecoder>> &models,
-    unsigned bos_id, unsigned eos_id,
-    const std::vector<std::vector<unsigned>> &src_batch,
-    unsigned limit) {
-  namespace F = primitiv::operators;
-
-  // Initialize the model
-  primitiv::Graph g;
-  primitiv::Graph::set_default_graph(g);
-  for (unsigned i = 0; i < models.size(); ++i) {
-    primitiv::Device::set_default_device(*devs[i % devs.size()]);
-    models[i]->encode(src_batch, false);
-  }
-
-  ::Result ret { {bos_id}, {} };
-
-  // Decode
-  while (ret.word_ids.back() != eos_id) {
-    const std::vector<unsigned> prev {ret.word_ids.back()};
-
-    std::vector<primitiv::Node> a_probs_list;
-    for (unsigned i = 0; i < models.size(); ++i) {
-      primitiv::Device::set_default_device(*devs[i % devs.size()]);
-      const auto a_probs = models[i]->decode_atten(prev, false);
-      a_probs_list.emplace_back(F::copy(a_probs, *devs[0]));
-    }
-    const auto a_probs_mean = F::mean(a_probs_list);
-
-    std::vector<primitiv::Node> scores_list;
-    for (unsigned i = 0; i < models.size(); ++i) {
-      primitiv::Device::set_default_device(*devs[i % devs.size()]);
-      const auto scores = models[i]->decode_word(F::copy(a_probs_mean), false);
-      scores_list.emplace_back(F::copy(scores, *devs[0]));
-    }
-    const auto scores_sum = F::sum(scores_list);
-
-    ret.atten_probs.emplace_back(g.forward(a_probs_mean).to_vector());
-    ret.word_ids.emplace_back(::argmax(g.forward(scores_sum).to_vector()));
+    ret.atten_probs.emplace_back(a_probs_mean.to_vector());
+    ret.word_ids.emplace_back(::argmax(scores_sum.to_vector()));
 
     if (ret.word_ids.size() == limit + 1) {
       ret.word_ids.emplace_back(eos_id);
@@ -162,7 +110,7 @@ class NMTTrainer {
   const std::string model_dir_;
   const ::Vocabulary &src_vocab_;
   const ::Vocabulary &trg_vocab_;
-  ::AttentionEncoderDecoder &model_;
+  ::AttentionEncoderDecoder<primitiv::Node> &model_;
   primitiv::Trainer &opt_;
   ::Sampler &train_sampler_;
   ::Sampler &dev_sampler_;
@@ -215,6 +163,8 @@ class NMTTrainer {
             "inference is allowed only for each one sentence.");
       }
 
+      primitiv::Graph g;
+      primitiv::Graph::set_default_graph(g);
       const ::Result ret = ::infer_sentence(
           model_, bos_id, eos_id, batch.source, 64);
       hyps.emplace_back(::make_hyp_str(ret, trg_vocab_));
@@ -228,7 +178,7 @@ public:
       const std::string &model_dir,
       const ::Vocabulary &src_vocab,
       const ::Vocabulary &trg_vocab,
-      ::AttentionEncoderDecoder &model,
+      ::AttentionEncoderDecoder<primitiv::Node> &model,
       primitiv::Trainer &trainer,
       ::Sampler &train_sampler,
       ::Sampler &dev_sampler,

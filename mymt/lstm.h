@@ -16,12 +16,13 @@
 //   j = tanh   (W_xj . x[t] + W_hj . h[t-1] + b_j)
 //   c[t] = i * j + f * c[t-1]
 //   h[t] = o * tanh(c[t])
+template<typename Var>
 class LSTM {
   std::string name_;
   unsigned ni_, no_;
   float dr_;
   primitiv::Parameter pwxh_, pwhh_, pbh_;
-  primitiv::Node wxh_, whh_, bh_, h_, c_;
+  Var wxh_, whh_, bh_, h_, c_;
 
 public:
   // New model.
@@ -71,21 +72,17 @@ public:
   }
 
   // Initializes internal values.
-  void init(
-      const primitiv::Node &init_c,
-      const primitiv::Node &init_h,
-      bool train) {
+  void init(const Var &init_c, const Var &init_h, bool train) {
     namespace F = primitiv::operators;
-    using primitiv::Node;
-    wxh_ = F::input<Node>(pwxh_);
-    whh_ = F::dropout(F::input<Node>(pwhh_), dr_, train);
-    bh_ = F::input<Node>(pbh_);
-    c_ = init_c.valid() ? init_c : F::zeros<Node>({no_});
+    wxh_ = F::input<Var>(pwxh_);
+    whh_ = F::dropout(F::input<Var>(pwhh_), dr_, train);
+    bh_ = F::input<Var>(pbh_);
+    c_ = init_c.valid() ? init_c : F::zeros<Var>({no_});
     h_ = init_h.valid() ? init_h : F::tanh(c_);
   }
 
   // One step forwarding.
-  primitiv::Node forward(const primitiv::Node &x, bool train) {
+  Var forward(const Var &x, bool train) {
     namespace F = primitiv::operators;
     const auto xx = F::dropout(x, dr_, train);
     const auto u = F::matmul(wxh_, xx) + F::matmul(whh_, h_) + bh_;
@@ -99,8 +96,8 @@ public:
   }
 
   // Retrieves current states.
-  primitiv::Node get_c() const { return c_; }
-  primitiv::Node get_h() const { return h_; }
+  Var get_c() const { return c_; }
+  Var get_h() const { return h_; }
 
   // Retrieves hyperparameters.
   std::string name() const { return name_; }

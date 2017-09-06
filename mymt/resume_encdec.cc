@@ -73,7 +73,8 @@ int main(int argc, char *argv[]) {
       const std::string last_dir = ::get_model_dir(model_dir, last_epoch);
 
       std::cout << "Loading model ... " << std::flush;
-      ::AttentionEncoderDecoder model("encdec", last_dir + "/model.");
+      ::AttentionEncoderDecoder<primitiv::Node> model(
+          "encdec", last_dir + "/model.");
       std::cout << "done." << std::endl;
 
       std::cout << "Loading trainer ... " << std::flush;

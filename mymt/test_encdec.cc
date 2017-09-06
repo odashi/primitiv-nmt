@@ -48,7 +48,8 @@ int main(int argc, char *argv[]) {
 #endif
       primitiv::Device::set_default_device(dev);
 
-      ::AttentionEncoderDecoder model("encdec", subdir + "/model.");
+      ::AttentionEncoderDecoder<primitiv::Tensor> model(
+          "encdec", subdir + "/model.");
 
       std::string line;
 

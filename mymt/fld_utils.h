@@ -118,7 +118,7 @@ class FLDTrainer {
   const std::string model_dir_;
   const ::Vocabulary &src_vocab_;
   const ::Vocabulary &trg_vocab_;
-  ::FixedLengthDecoder &model_;
+  ::FixedLengthDecoder<primitiv::Node> &model_;
   primitiv::Trainer &opt_;
   ::Sampler &train_sampler_;
   ::Sampler &dev_sampler_;
@@ -186,7 +186,7 @@ public:
       const std::string &model_dir,
       const ::Vocabulary &src_vocab,
       const ::Vocabulary &trg_vocab,
-      ::FixedLengthDecoder &model,
+      ::FixedLengthDecoder<primitiv::Node> &model,
       primitiv::Trainer &trainer,
       ::Sampler &train_sampler,
       ::Sampler &dev_sampler,

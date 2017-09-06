@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       std::cout << "Initializing model ... " << std::flush;
-      ::AttentionEncoderDecoder model(
+      ::AttentionEncoderDecoder<primitiv::Node> model(
           "encdec", src_vocab.size(), trg_vocab.size(),
           embed_size, hidden_size, dropout_rate);
       std::cout << "done." << std::endl;
