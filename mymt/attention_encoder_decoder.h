@@ -41,9 +41,9 @@ public:
     , hidden_size_(hidden_size)
     , dropout_rate_(dropout_rate)
     , pl_src_xe_(name_ + ".l_src_xe", {embed_size_, src_vocab_size_},
-        primitiv::initializers::XavierUniform())
+        primitiv::initializers::Uniform(-0.1, 0.1))
     , pl_trg_xe_(name_ + ".l_trg_xe", {embed_size_, trg_vocab_size_},
-        primitiv::initializers::XavierUniform())
+        primitiv::initializers::Uniform(-0.1, 0.1))
     , rnn_fw_(name_ + ".rnn_fw", embed_size_, hidden_size_, dropout_rate_)
     , rnn_bw_(name_ + ".rnn_bw", embed_size_, hidden_size_, dropout_rate_)
     , rnn_dec_(name_ + ".rnn_dec", 2 * embed_size_, hidden_size_, dropout_rate_)

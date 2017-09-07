@@ -1,6 +1,7 @@
 #ifndef MYMT_LSTM_H_
 #define MYMT_LSTM_H_
 
+#include <cmath>
 #include <fstream>
 #include <string>
 
@@ -35,9 +36,11 @@ public:
     , no_(output_size)
     , dr_(dropout_rate)
     , pwxh_(name_ + ".w_xh", {4 * no_, ni_},
-        primitiv::initializers::XavierUniform())
+        primitiv::initializers::XavierUniform(
+          std::sqrt((4 * no_ + ni_) / static_cast<float>(no_ + ni_))))
     , pwhh_(name_ + ".w_hh", {4 * no_, no_},
-        primitiv::initializers::XavierUniform())
+        primitiv::initializers::XavierUniform(
+          std::sqrt((4 * no_ + ni_) / static_cast<float>(no_ + ni_))))
     , pbh_(name_ + ".b_h", {4 * no_},
         primitiv::initializers::Constant(0)) {}
 

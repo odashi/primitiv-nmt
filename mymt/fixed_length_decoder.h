@@ -40,9 +40,9 @@ public:
     , nh_(hidden_size)
     , dr_(dropout_rate)
     , pl_src_xe_(name_ + ".l_src_xe", {ne_, nv_src_},
-        primitiv::initializers::XavierUniform())
+        primitiv::initializers::Uniform(-0.1, 0.1))
     , pl_trg_xe_(name_ + ".l_trg_xe", {ne_, nv_trg_},
-        primitiv::initializers::XavierUniform())
+        primitiv::initializers::Uniform(-0.1, 0.1))
     , rnn_enc_fw_(name_ + ".rnn_enc_fw", ne_, nh_, dr_)
     , rnn_enc_bw_(name_ + ".rnn_enc_bw", ne_, nh_, dr_)
     , rnn_dec_fw_(name_ + ".rnn_dec_fw", ne_, nh_, dr_)
