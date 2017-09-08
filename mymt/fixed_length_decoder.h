@@ -23,7 +23,7 @@ class FixedLengthDecoder {
   ::LSTM<Var> rnn_enc_fw_, rnn_enc_bw_, rnn_dec_fw_, rnn_dec_bw_;
   ::Attention<Var> att_;
   ::Affine<Var> aff_ed_, aff_cdj_, aff_jy_;
-  Var l_trg_xe_;
+  Var l_trg_xe_, dec_fw_c0_, dec_bw_c0_;
 
   FixedLengthDecoder(const FixedLengthDecoder &) = delete;
   FixedLengthDecoder &operator=(const FixedLengthDecoder &) = delete;
@@ -138,15 +138,15 @@ public:
     }
     std::reverse(b_list.begin(), b_list.end());
 
-    // Initializing decoder states
+    // Initializing fixed states
     aff_ed_.init();
     aff_cdj_.init();
     aff_jy_.init();
     const auto last_enc_fb = F::concat(
         {rnn_enc_fw_.get_c(), rnn_enc_bw_.get_c()}, 0);
     const auto init_dec_fb = aff_ed_.forward(last_enc_fb);
-    rnn_dec_fw_.init(F::slice(init_dec_fb, 0, 0, nh_), invalid, train);
-    rnn_dec_bw_.init(F::slice(init_dec_fb, 0, nh_, 2 * nh_), invalid, train);
+    dec_fw_c0_ = F::slice(init_dec_fb, 0, 0, nh_);
+    dec_bw_c0_ = F::slice(init_dec_fb, 0, nh_, 2 * nh_);
 
     // Making matrix for calculating attention (ignoring <bos> and <eos>)
     std::vector<Var> fb_list;
@@ -159,11 +159,73 @@ public:
     l_trg_xe_ = F::input<Var>(pl_trg_xe_);
   }
 
+  struct SamplingResult {
+    unsigned org_id, new_id;
+    float org_score, new_score;
+  };
+
+  // Calculates a sample.
+  SamplingResult sample(
+      const std::vector<std::vector<unsigned>> &trg_batch,
+      unsigned pos) {
+    namespace F = primitiv::operators;
+
+    const unsigned trg_len = trg_batch.size();
+    if (pos >= trg_len - 2) throw std::runtime_error("invalid pos");
+
+    // Initializing decoder stetes
+    const Var invalid;
+    rnn_dec_fw_.init(dec_fw_c0_, invalid, false);
+    rnn_dec_bw_.init(dec_bw_c0_, invalid, false);
+
+    // Target embedding
+    std::vector<Var> e_list;
+    for (const auto &x : trg_batch) {
+      e_list.emplace_back(F::pick(l_trg_xe_, x, 1));
+    }
+
+    // Forward RNN
+    std::vector<Var> f_list;
+    for (const auto &e : e_list) {
+      f_list.emplace_back(rnn_dec_fw_.forward(e, false));
+    }
+
+    // Backward RNN
+    std::vector<Var> b_list;
+    for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
+      b_list.emplace_back(rnn_dec_bw_.forward(*it, false));
+    }
+
+    // Calculates positional probs.
+    const auto d = F::concat({f_list[pos], b_list[pos + 2]}, 0);
+    const auto a_probs = att_.get_probs(d);
+    const auto c = att_.get_context(a_probs);
+    const auto j = F::tanh(aff_cdj_.forward(F::concat({c, d}, 0)));
+    const auto y = aff_jy_.forward(j);
+    const auto log_probs = F::log_softmax(y, 0);
+    const auto log_probs_v = log_probs.to_vector();
+
+    // Sample a word.
+    const auto gumbel_noise = -F::log(
+        -F::log(F::random::uniform<Var>(log_probs.shape(), 0, 1)));
+    const unsigned sample = ::argmax((log_probs + gumbel_noise).to_vector());
+
+    return SamplingResult {
+      trg_batch[pos + 1][0], sample,
+      log_probs_v[trg_batch[pos + 1][0]], log_probs_v[sample],
+    };
+  }
+
   // Calculates loss function.
   Var loss(const std::vector<std::vector<unsigned>> &trg_batch, bool train) {
     namespace F = primitiv::operators;
 
     const unsigned trg_len = trg_batch.size();
+
+    // Initializing decoder stetes
+    const Var invalid;
+    rnn_dec_fw_.init(dec_fw_c0_, invalid, train);
+    rnn_dec_bw_.init(dec_bw_c0_, invalid, train);
 
     // Target embedding
     std::vector<Var> e_list;
