@@ -25,6 +25,7 @@ class AttentionEncoderDecoder {
   ::Affine<Var> aff_fbd_, aff_cdj_, aff_jy_;
   Var d_, j_;
   Var l_trg_xe_;
+  Var dec_c0_;
 
   AttentionEncoderDecoder(const AttentionEncoderDecoder &) = delete;
   AttentionEncoderDecoder &operator=(const AttentionEncoderDecoder &) = delete;
@@ -135,12 +136,12 @@ public:
     }
     std::reverse(b_list.begin(), b_list.end());
 
-    // Initializing decoder states
+    // Preparing decoder states
     aff_fbd_.init();
     aff_cdj_.init();
     aff_jy_.init();
     const auto last_fb = F::concat({rnn_fw_.get_c(), rnn_bw_.get_c()}, 0);
-    rnn_dec_.init(aff_fbd_.forward(last_fb), invalid, train);
+    dec_c0_ = aff_fbd_.forward(last_fb);
 
     // Making matrix for calculating attention
     std::vector<Var> fb_list;
@@ -149,11 +150,14 @@ public:
     }
     att_.init(fb_list);
 
-    // Initial output embedding (feeding) vector.
-    j_ = F::zeros<Var>({embed_size_});
-
     // Other parameters
     l_trg_xe_ = F::input<Var>(pl_trg_xe_);
+  }
+
+  // Initializes decoder states
+  void init_decoder(bool train) {
+    rnn_dec_.init(dec_c0_, Var(), train);
+    j_ = primitiv::operators::zeros<Var>({embed_size_});
   }
 
   // Calculates next attention probabilities

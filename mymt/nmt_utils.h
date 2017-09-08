@@ -28,6 +28,7 @@ inline ::Result infer_sentence(
 
   // Initialize the model
   model.encode(src_batch, false);
+  model.init_decoder(false);
 
   ::Result ret { {bos_id}, {} };
 
@@ -62,6 +63,7 @@ inline ::Result infer_sentence_ensemble(
   for (unsigned i = 0; i < models.size(); ++i) {
     primitiv::Device::set_default_device(*devs[i % devs.size()]);
     models[i]->encode(src_batch, false);
+    models[i]->init_decoder(false);
   }
 
   ::Result ret { {bos_id}, {} };
@@ -131,6 +133,7 @@ class NMTTrainer {
       primitiv::Graph g;
       primitiv::Graph::set_default_graph(g);
       model_.encode(batch.source, train);
+      model_.init_decoder(train);
       const auto loss = model_.loss(batch.target, train);
       accum_loss += g.forward(loss).to_vector()[0] * batch_size;
 
