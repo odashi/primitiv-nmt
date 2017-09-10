@@ -160,8 +160,7 @@ int main(int argc, char *argv[]) {
               namespace F = primitiv::operators;
               const auto ap = proposal.decode_atten({prev_id}, false);
               const auto wp = F::log_softmax(proposal.decode_word(ap, false), 0);
-              const auto noise = 0.1 * -F::log(-F::log(
-                    F::random::uniform<primitiv::Tensor>(wp.shape(), 0, 1)));
+              const auto noise = F::random::gumbel<primitiv::Tensor>(wp.shape(), 0, 0.1);
               const unsigned new_id = ::argmax((wp + noise).to_vector());
               lqy += wp.to_vector()[new_id];
               new_trg_batch[i + 1][0] = new_id;

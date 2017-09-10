@@ -206,9 +206,8 @@ public:
     const auto log_probs_v = log_probs.to_vector();
 
     // Sample a word.
-    const auto gumbel_noise = -F::log(
-        -F::log(F::random::uniform<Var>(log_probs.shape(), 0, 1)));
-    const unsigned sample = ::argmax((log_probs + gumbel_noise).to_vector());
+    const auto noise = F::random::gumbel<Var>(log_probs.shape(), 0, 1);
+    const unsigned sample = ::argmax((log_probs + noise).to_vector());
 
     return SamplingResult {
       trg_batch[pos + 1][0], sample,
