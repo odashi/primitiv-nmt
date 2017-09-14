@@ -23,6 +23,8 @@ int main(int argc, char *argv[]) {
       "(file/in) Target vocabulary file",
       "(dir/in) FLD model directory",
       "(int) FLD epoch",
+      "(dir/in) AttEncDec model directory",
+      "(int) AttEncDec epoch",
 #ifdef MYMT_USE_CUDA
       "(int) GPU ID",
 #endif
@@ -33,11 +35,14 @@ int main(int argc, char *argv[]) {
       const std::string trg_vocab_file = *++argv;
       const std::string fld_model_dir = *++argv;
       const unsigned fld_epoch = std::stoi(*++argv);
+      const std::string encdec_model_dir = *++argv;
+      const unsigned encdec_epoch = std::stoi(*++argv);
 #ifdef MYMT_USE_CUDA
       const unsigned gpu_id = std::stoi(*++argv);
 #endif
 
       const std::string fld_subdir = ::get_model_dir(fld_model_dir, fld_epoch);
+      const std::string encdec_subdir = ::get_model_dir(encdec_model_dir, encdec_epoch);
 
       const ::Vocabulary src_vocab(src_vocab_file);
       const ::Vocabulary trg_vocab(trg_vocab_file);
@@ -52,6 +57,7 @@ int main(int argc, char *argv[]) {
       primitiv::Device::set_default_device(dev);
 
       ::FixedLengthDecoder<primitiv::Tensor> model("fld", fld_subdir + "/model.");
+      ::AttentionEncoderDecoder<primitiv::Tensor> proposal("encdec", encdec_subdir + "/model.");
 
       std::random_device rd;
       std::mt19937 rng(rd());
@@ -96,6 +102,7 @@ int main(int argc, char *argv[]) {
         std::cout << "num_samples: " << num_samples << std::endl;
 
         model.encode(src_batch, false);
+        proposal.encode(src_batch, false);
 
         // Initial sample
         std::vector<std::vector<unsigned>> trg_batch;
@@ -121,7 +128,45 @@ int main(int argc, char *argv[]) {
 
           double lqx = 0, lqy = 0;
 
-          if (unif() < 0.8) {
+          if (unif() < 0.4) {
+            unsigned id1 = static_cast<unsigned>(unif() * trg_len);
+            unsigned id2 = 1 + static_cast<unsigned>(unif() * trg_len);
+            while (id2 == id1) id2 = 1 + static_cast<unsigned>(unif() * trg_len);
+            if (id1 > id2) {
+              const unsigned temp = id1;
+              id1 = id2;
+              id2 = temp;
+            }
+
+            proposal.init_decoder(false);
+            for (unsigned i = 0; i < id1; ++i) {
+              const auto ap = proposal.decode_atten(new_trg_batch[i], false);
+              const auto wp = proposal.decode_word(ap, false);
+            }
+            for (unsigned i = id1; i < id2; ++i) {
+              namespace F = primitiv::operators;
+              const auto ap = proposal.decode_atten(new_trg_batch[i], false);
+              const auto wp = F::log_softmax(proposal.decode_word(ap, false), 0);
+              lqx += wp.to_vector()[new_trg_batch[i + 1][0]];
+            }
+
+            proposal.init_decoder(false);
+            unsigned prev_id = new_trg_batch[id1][0];
+            for (unsigned i = 0; i < id1; ++i) {
+              const auto ap = proposal.decode_atten(new_trg_batch[i], false);
+              const auto wp = proposal.decode_word(ap, false);
+            }
+            for (unsigned i = id1; i < id2; ++i) {
+              namespace F = primitiv::operators;
+              const auto ap = proposal.decode_atten({prev_id}, false);
+              const auto wp = F::log_softmax(proposal.decode_word(ap, false), 0);
+              const auto noise = F::random::gumbel<primitiv::Tensor>(wp.shape(), 0, 0.1);
+              const unsigned new_id = ::argmax((wp + noise).to_vector());
+              lqy += wp.to_vector()[new_id];
+              new_trg_batch[i + 1][0] = new_id;
+              prev_id = new_id;
+            }
+          } else if (unif() < 0.8) {
             const unsigned change_id = static_cast<unsigned>(unif() * trg_len);
             const auto sample_ret = model.sample(trg_batch, change_id);
             new_trg_batch[change_id + 1][0] = sample_ret.new_id;
