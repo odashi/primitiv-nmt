@@ -195,6 +195,7 @@ public:
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
       b_list.emplace_back(rnn_dec_bw_.forward(*it, false));
     }
+    std::reverse(b_list.begin(), b_list.end());
 
     // Calculates positional probs.
     const auto d = F::concat({f_list[pos], b_list[pos + 2]}, 0);
