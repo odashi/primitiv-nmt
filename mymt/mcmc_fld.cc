@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
         trg_batch.emplace_back(std::vector<unsigned> {eos_id});
 
         // Initial score
-        float trg_score = model.loss(trg_batch, false).to_vector()[0];
+        float trg_score = -model.loss(trg_batch, false).to_vector()[0];
 
         std::cout << "target-0:";
         for (const auto &v : trg_batch) {
@@ -122,9 +122,9 @@ int main(int argc, char *argv[]) {
           double lqx = 0, lqy = 0;
 
           if (unif() < 0.8) {
-            const unsigned change_id = static_cast<unsigned>(unif() * trg_len);
+            const unsigned change_id = 1 + static_cast<unsigned>(unif() * trg_len);
             const auto sample_ret = model.sample(trg_batch, change_id);
-            new_trg_batch[change_id + 1][0] = sample_ret.new_id;
+            new_trg_batch[change_id][0] = sample_ret.new_id;
             lqx = sample_ret.org_score;
             lqy = sample_ret.new_score;
           } else {
@@ -139,9 +139,12 @@ int main(int argc, char *argv[]) {
             }
           }
 
-          const double lpx = -trg_score;
+          const double lpx = trg_score;
           const double lpy = -model.loss(new_trg_batch, false).to_vector()[0];
-          const double alpha = std::exp(lpy + lqx - lpx - lqy);
+
+          const double tp = num_samples / static_cast<double>(n);
+
+          const double alpha = std::exp((lpy + lqx - lpx - lqy) / tp);
 
           std::cout << "lp(x): " << lpx << std::endl;
           std::cout << "lp(y): " << lpy << std::endl;
@@ -150,7 +153,7 @@ int main(int argc, char *argv[]) {
           std::cout << "alpha: " << alpha << std::endl;
           if (unif() <= alpha) {
             trg_batch = new_trg_batch;
-            trg_score = -lpy;
+            trg_score = lpy;
           }
 
           std::cout << "target-" << n << ':';

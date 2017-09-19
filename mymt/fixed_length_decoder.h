@@ -159,6 +159,17 @@ public:
     l_trg_xe_ = F::input<Var>(pl_trg_xe_);
   }
 
+  // Calculates word scores.
+  Var calculate_scores(const Var &fw_state, const Var &bw_state) {
+    namespace F = primitiv::operators;
+
+    const auto d = F::concat({fw_state, bw_state}, 0);
+    const auto a_probs = att_.get_probs(d);
+    const auto c = att_.get_context(a_probs);
+    const auto j = F::tanh(aff_cdj_.forward(F::concat({c, d}, 0)));
+    return aff_jy_.forward(j);
+  }
+
   struct SamplingResult {
     unsigned org_id, new_id;
     float org_score, new_score;
@@ -166,12 +177,11 @@ public:
 
   // Calculates a sample.
   SamplingResult sample(
-      const std::vector<std::vector<unsigned>> &trg_batch,
-      unsigned pos) {
+      const std::vector<std::vector<unsigned>> &trg_batch, unsigned pos) {
     namespace F = primitiv::operators;
 
     const unsigned trg_len = trg_batch.size();
-    if (pos >= trg_len - 2) throw std::runtime_error("invalid pos");
+    if (pos == 0 || pos >= trg_len - 1) throw std::runtime_error("invalid pos");
 
     // Initializing decoder stetes
     const Var invalid;
@@ -185,23 +195,19 @@ public:
     }
 
     // Forward RNN
-    std::vector<Var> f_list;
-    for (const auto &e : e_list) {
-      f_list.emplace_back(rnn_dec_fw_.forward(e, false));
+    Var f = rnn_dec_fw_.get_h();
+    for (unsigned i = 0; i < pos; ++i) {
+      f = rnn_dec_fw_.forward(e_list[i], false);
     }
 
     // Backward RNN
-    std::vector<Var> b_list;
-    for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
-      b_list.emplace_back(rnn_dec_bw_.forward(*it, false));
+    Var b = rnn_dec_bw_.get_h();
+    for (unsigned i = trg_len - 1; i > pos; --i) {
+      b = rnn_dec_bw_.forward(e_list[i], false);
     }
 
     // Calculates positional probs.
-    const auto d = F::concat({f_list[pos], b_list[pos + 2]}, 0);
-    const auto a_probs = att_.get_probs(d);
-    const auto c = att_.get_context(a_probs);
-    const auto j = F::tanh(aff_cdj_.forward(F::concat({c, d}, 0)));
-    const auto y = aff_jy_.forward(j);
+    const auto y = calculate_scores(f, b);
     const auto log_probs = F::log_softmax(y, 0);
     const auto log_probs_v = log_probs.to_vector();
 
@@ -234,25 +240,23 @@ public:
 
     // Forward RNN
     std::vector<Var> f_list;
+    f_list.emplace_back(rnn_dec_fw_.get_h());
     for (const auto &e : e_list) {
       f_list.emplace_back(rnn_dec_fw_.forward(e, train));
     }
 
     // Backward RNN
     std::vector<Var> b_list;
+    b_list.emplace_back(rnn_dec_bw_.get_h());
     for (auto it = e_list.rbegin(); it != e_list.rend(); ++it) {
       b_list.emplace_back(rnn_dec_bw_.forward(*it, train));
     }
     std::reverse(b_list.begin(), b_list.end());
 
-    // Calculates losses (ignoring <bos> and <eos>)
+    // Calculates losses
     std::vector<Var> losses;
-    for (unsigned i = 1; i < trg_len - 1; ++i) {
-      const auto d = F::concat({f_list[i - 1], b_list[i + 1]}, 0);
-      const auto a_probs = att_.get_probs(d);
-      const auto c = att_.get_context(a_probs);
-      const auto j = F::tanh(aff_cdj_.forward(F::concat({c, d}, 0)));
-      const auto y = aff_jy_.forward(j);
+    for (unsigned i = 0; i < trg_len; ++i) {
+      const auto y = calculate_scores(f_list[i], b_list[i + 1]);
       losses.emplace_back(F::softmax_cross_entropy(y, trg_batch[i], 0));
     }
     return F::batch::mean(F::sum(losses));
