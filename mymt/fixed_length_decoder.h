@@ -205,6 +205,7 @@ public:
     for (unsigned i = trg_len - 1; i > pos; --i) {
       b = rnn_dec_bw_.forward(e_list[i], false);
     }
+    std::reverse(b_list.begin(), b_list.end());
 
     // Calculates positional probs.
     const auto y = calculate_scores(f, b);
