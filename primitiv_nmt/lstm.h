@@ -33,11 +33,8 @@ public:
   // Initializes parameters.
   void init(unsigned input_size, unsigned output_size) {
     namespace I = primitiv::initializers;
-    const float scale = std::sqrt(
-        (4 * output_size + input_size) /
-        static_cast<float>(output_size + input_size));
-    pwxh_.init({4 * output_size, input_size}, I::XavierUniform(scale));
-    pwhh_.init({4 * output_size, input_size}, I::XavierUniform(scale));
+    pwxh_.init({4 * output_size, input_size}, I::Uniform(-0.1, 0.1));
+    pwhh_.init({4 * output_size, output_size}, I::Uniform(-0.1, 0.1));
     pbh_.init({4 * output_size}, I::Constant(0));
   }
 

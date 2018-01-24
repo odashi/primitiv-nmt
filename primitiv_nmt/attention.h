@@ -28,10 +28,10 @@ public:
   void init(
       unsigned encoder_size, unsigned decoder_size, unsigned hidden_size) {
     namespace I = primitiv::initializers;
-    pweh_.init({hidden_size, encoder_size}, I::XavierUniform());
-    pwdh_.init({hidden_size, decoder_size}, I::XavierUniform());
+    pweh_.init({hidden_size, encoder_size}, I::Uniform(-0.1, 0.1));
+    pwdh_.init({hidden_size, decoder_size}, I::Uniform(-0.1, 0.1));
     pbh_.init({hidden_size}, I::Constant(0));
-    pwha_.init({1, hidden_size}, I::XavierUniform());
+    pwha_.init({1, hidden_size}, I::Uniform(-0.1, 0.1));
   }
 
   // Initializes internal states.

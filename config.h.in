@@ -1,1 +1,1 @@
-#cmakedefine MYMT_USE_CUDA
+#cmakedefine PRIMITIV_NMT_USE_CUDA

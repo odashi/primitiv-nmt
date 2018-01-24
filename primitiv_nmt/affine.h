@@ -24,7 +24,7 @@ public:
   // Initializes parameters.
   void init(unsigned input_size, unsigned output_size) {
     namespace I = primitiv::initializers;
-    pw_.init({output_size, input_size}, I::XavierUniform());
+    pw_.init({output_size, input_size}, I::Uniform(-0.1, 0.1));
     pb_.init({output_size}, I::Constant(0));
   }
 
