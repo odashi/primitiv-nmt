@@ -1,4 +1,5 @@
-mymt
-====
+primitiv-nmt
+============
 
-MT code for experiments.
+Neural machine translation tool developed by [primitiv](https://github.com/primitiv/primitiv)
+
