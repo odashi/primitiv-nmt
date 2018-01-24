@@ -1,5 +1,5 @@
-#ifndef MYMT_VOCAB_H_
-#define MYMT_VOCAB_H_
+#ifndef PRIMITIV_NMT_VOCAB_H_
+#define PRIMITIV_NMT_VOCAB_H_
 
 #include <fstream>
 #include <queue>
@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "mymt.pb.h"
+#include "primitiv_nmt.pb.h"
 #include "utils.h"
 
 class Vocabulary {
@@ -23,7 +23,7 @@ class Vocabulary {
 
 public:
   Vocabulary(const std::string &path) {
-    mymt::proto::Vocabulary vocab_data;
+    primitiv_nmt::proto::Vocabulary vocab_data;
     ::load_proto(path, vocab_data);
     unsigned sum_freq = 0;
     for (const auto &stat : vocab_data.tokens()) {
@@ -81,4 +81,4 @@ public:
   unsigned size() const { return itos_.size(); }
 };
 
-#endif  // MYMT_VOCAB_H_
+#endif  // PRIMITIV_NMT_VOCAB_H_

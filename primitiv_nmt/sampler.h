@@ -1,12 +1,12 @@
-#ifndef MYMT_SAMPLER_H_
-#define MYMT_SAMPLER_H_
+#ifndef PRIMITIV_NMT_SAMPLER_H_
+#define PRIMITIV_NMT_SAMPLER_H_
 
 #include <algorithm>
 #include <random>
 #include <stdexcept>
 #include <vector>
 
-#include "mymt.pb.h"
+#include "primitiv_nmt.pb.h"
 
 struct Batch {
   std::vector<std::vector<unsigned>> source;
@@ -26,14 +26,14 @@ public:
 };
 
 class MonotoneSampler : public Sampler {
-  const mymt::proto::Corpus &corpus_;
+  const primitiv_nmt::proto::Corpus &corpus_;
   unsigned pos_;
 
   MonotoneSampler(const MonotoneSampler &) = delete;
   MonotoneSampler &operator=(const MonotoneSampler &) = delete;
 
 public:
-  MonotoneSampler(const mymt::proto::Corpus &corpus)
+  MonotoneSampler(const primitiv_nmt::proto::Corpus &corpus)
     : corpus_(corpus), pos_(0) {}
 
   void reset() override { pos_ = 0; }
@@ -62,7 +62,7 @@ public:
 };
 
 class RandomBatchSampler : public Sampler {
-  const mymt::proto::Corpus &corpus_;
+  const primitiv_nmt::proto::Corpus &corpus_;
   unsigned bs_;
   std::mt19937 rng_;
   std::vector<unsigned> ids_;
@@ -74,7 +74,7 @@ class RandomBatchSampler : public Sampler {
 
 public:
   RandomBatchSampler(
-      const mymt::proto::Corpus &corpus, unsigned batch_size, unsigned seed)
+      const primitiv_nmt::proto::Corpus &corpus, unsigned batch_size, unsigned seed)
     : corpus_(corpus)
     , bs_(batch_size)
     , rng_(seed)
@@ -160,4 +160,4 @@ public:
   unsigned num_sentences() const override { return corpus_.samples_size(); }
 };
 
-#endif  // MYMT_SAMPLER_H_
+#endif  // PRIMITIV_NMT_SAMPLER_H_

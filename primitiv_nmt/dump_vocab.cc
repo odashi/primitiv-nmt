@@ -2,17 +2,17 @@
 #include <stdexcept>
 #include <string>
 
-#include "mymt.pb.h"
+#include "primitiv_nmt.pb.h"
 #include "utils.h"
 
 using namespace std;
 
 void dump_vocab(const string &path) {
-  mymt::proto::Vocabulary vocab;
+  primitiv_nmt::proto::Vocabulary vocab;
   ::load_proto(path, vocab);
 
   unsigned id = 0;
-  for (const mymt::proto::TokenStats &token : vocab.tokens()) {
+  for (const primitiv_nmt::proto::TokenStats &token : vocab.tokens()) {
     cout << id++ << '\t' << token.surface() << '\t'
          << token.frequency() << endl;
   }

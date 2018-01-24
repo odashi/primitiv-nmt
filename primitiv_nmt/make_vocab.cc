@@ -6,7 +6,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "mymt.pb.h"
+#include "primitiv_nmt.pb.h"
 #include "utils.h"
 
 using namespace std;
@@ -55,10 +55,10 @@ void make_vocab(
   for (const auto &x : freq) q.push(x);
 
   // Makes vocabulary.
-  mymt::proto::Vocabulary vocab;
-  mymt::proto::TokenStats *unk_stat = vocab.add_tokens();
-  mymt::proto::TokenStats *bos_stat = vocab.add_tokens();
-  mymt::proto::TokenStats *eos_stat = vocab.add_tokens();
+  primitiv_nmt::proto::Vocabulary vocab;
+  primitiv_nmt::proto::TokenStats *unk_stat = vocab.add_tokens();
+  primitiv_nmt::proto::TokenStats *bos_stat = vocab.add_tokens();
+  primitiv_nmt::proto::TokenStats *eos_stat = vocab.add_tokens();
   unk_stat->set_surface("<unk>");
   bos_stat->set_surface("<bos>");
   eos_stat->set_surface("<eos>");
@@ -67,7 +67,7 @@ void make_vocab(
 
   // Chooses top vocab_size-3 frequent words.
   for (unsigned i = 3; !q.empty() && i < vocab_size; ++i) {
-    mymt::proto::TokenStats *stat = vocab.add_tokens();
+    primitiv_nmt::proto::TokenStats *stat = vocab.add_tokens();
     stat->set_surface(q.top().first);
     stat->set_frequency(q.top().second);
     num_all -= q.top().second;

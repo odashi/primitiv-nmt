@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "mymt.pb.h"
+#include "primitiv_nmt.pb.h"
 #include "utils.h"
 #include "vocabulary.h"
 
@@ -18,7 +18,7 @@ void make_corpus(
   ::open_file(src_corpus_path, src_ifs);
   ::open_file(trg_corpus_path, trg_ifs);
 
-  mymt::proto::Corpus corpus;
+  primitiv_nmt::proto::Corpus corpus;
 
   string src_line, trg_line;
   unsigned stored = 0, ignored = 0;
@@ -31,10 +31,10 @@ void make_corpus(
     const unsigned trg_size = trg_ids.size() - 2;
     if (src_size >= min_words && src_size <= max_words &&
         trg_size >= min_words && trg_size <= max_words) {
-      mymt::proto::Sample *sample = corpus.add_samples();
-      mymt::proto::Sentence *source = sample->mutable_source();
+      primitiv_nmt::proto::Sample *sample = corpus.add_samples();
+      primitiv_nmt::proto::Sentence *source = sample->mutable_source();
       for (const unsigned src_id : src_ids) source->add_token_ids(src_id);
-      mymt::proto::Sentence *target = sample->mutable_target();
+      primitiv_nmt::proto::Sentence *target = sample->mutable_target();
       for (const unsigned trg_id : trg_ids) target->add_token_ids(trg_id);
       ++stored;
     } else {

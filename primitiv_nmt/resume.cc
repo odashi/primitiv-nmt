@@ -6,14 +6,14 @@
 #include <vector>
 
 #include <primitiv/primitiv.h>
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
 #include <primitiv/primitiv_cuda.h>
 #endif
 
-#include "attention_encoder_decoder.h"
+#include "encoder_decoder.h"
 #include "nmt_utils.h"
 #include "lstm.h"
-#include "mymt.pb.h"
+#include "primitiv_nmt.pb.h"
 #include "sampler.h"
 #include "utils.h"
 #include "vocabulary.h"
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
       "(dir/out) Model directory",
       "(int) Last epoch",
       "(int) Number of epochs",
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
       "(int) GPU ID",
 #endif
   });
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
       const std::string model_dir = *++argv;
       const unsigned last_epoch = std::stoi(*++argv);
       const unsigned num_epochs = std::stoi(*++argv);
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
       const unsigned gpu_id = std::stoi(*++argv);
 #endif
 
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       std::cout << "Loading corpus ... " << std::flush;
-      mymt::proto::Corpus train_corpus, dev_corpus;
+      primitiv_nmt::proto::Corpus train_corpus, dev_corpus;
       ::load_proto(train_corpus_file, train_corpus);
       ::load_proto(dev_corpus_file, dev_corpus);
       std::random_device rd;
@@ -62,30 +62,30 @@ int main(int argc, char *argv[]) {
       std::cout << "done." << std::endl;
 
       std::cout << "Initializing devices ... " << std::flush;
-#ifdef MYMT_USE_CUDA
-      primitiv::CUDADevice dev(gpu_id);
+#ifdef PRIMITIV_NMT_USE_CUDA
+      primitiv::devices::CUDA dev(gpu_id);
 #else
-      primitiv::CPUDevice dev;
+      primitiv::devices::Eigen dev;
 #endif
-      primitiv::Device::set_default_device(dev);
+      primitiv::Device::set_default(dev);
       std::cout << "done." << std::endl;
 
       const std::string last_dir = ::get_model_dir(model_dir, last_epoch);
 
       std::cout << "Loading model ... " << std::flush;
-      ::AttentionEncoderDecoder<primitiv::Node> model(
-          "encdec", last_dir + "/model.");
+      ::EncoderDecoder<primitiv::Node> model;
+      model.load(last_dir + "/model");
       std::cout << "done." << std::endl;
 
       std::cout << "Loading trainer ... " << std::flush;
-      std::shared_ptr<primitiv::Trainer> opt = primitiv::Trainer::load(
-          last_dir + "/trainer");
-      model.register_training(*opt);
+      primitiv::optimizers::Adam opt;
+      opt.load(last_dir + "/trainer");
+      opt.add(model);
       std::cout << "done." << std::endl;
 
       NMTTrainer trainer(
           model_dir, src_vocab, trg_vocab, model,
-          *opt, train_sampler, dev_sampler, last_epoch);
+          opt, train_sampler, dev_sampler, last_epoch);
 
       std::cout << "Restart training." << std::endl;
       for (unsigned i = 0; i < num_epochs; ++i) trainer.train();

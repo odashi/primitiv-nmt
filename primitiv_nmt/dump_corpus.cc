@@ -3,14 +3,14 @@
 #include <string>
 #include <vector>
 
-#include "mymt.pb.h"
+#include "primitiv_nmt.pb.h"
 #include "utils.h"
 #include "vocabulary.h"
 
 using namespace std;
 
 void dump_corpus(
-    const mymt::proto::Corpus &corpus,
+    const primitiv_nmt::proto::Corpus &corpus,
     const ::Vocabulary &src_vocab, const ::Vocabulary &trg_vocab) {
   for (unsigned i = 0; i < static_cast<unsigned>(corpus.samples_size()); ++i) {
     const auto &sample = corpus.samples()[i];
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
   });
 
   ::global_try_block([&]() {
-      mymt::proto::Corpus corpus;
+      primitiv_nmt::proto::Corpus corpus;
       ::load_proto(argv[1], corpus);
       ::Vocabulary src_vocab(argv[2]);
       ::Vocabulary trg_vocab(argv[3]);

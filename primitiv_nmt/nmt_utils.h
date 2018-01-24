@@ -1,5 +1,5 @@
-#ifndef MYMT_FLD_UTILS_H_
-#define MYMT_FLD_UTILS_H_
+#ifndef PRIMITIV_NMT_NMT_UTILS_H_
+#define PRIMITIV_NMT_NMT_UTILS_H_
 
 #include <iostream>
 #include <memory>
@@ -8,7 +8,7 @@
 
 #include <primitiv/primitiv.h>
 
-#include "fixed_length_decoder.h"
+#include "encoder_decoder.h"
 #include "sampler.h"
 #include "utils.h"
 #include "vocabulary.h"
@@ -18,29 +18,28 @@ struct Result {
   std::vector<std::vector<float>> atten_probs;
 };
 
-/*
+template<typename Var>
 inline ::Result infer_sentence(
-    ::FixedLengthDecoder &model,
+    ::EncoderDecoder<Var> &model,
     unsigned bos_id, unsigned eos_id,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
-  namespace F = primitiv::node_ops;
+  namespace F = primitiv::functions;
 
   // Initialize the model
-  primitiv::Graph g;
-  primitiv::Graph::set_default_graph(g);
-  model.encode(src_batch, false);
+  model.encode(src_batch);
+  model.init_decoder();
 
   ::Result ret { {bos_id}, {} };
 
   // Decode
   while (ret.word_ids.back() != eos_id) {
     const std::vector<unsigned> prev {ret.word_ids.back()};
-    const auto a_probs = model.decode_atten(prev, false);
-    ret.atten_probs.emplace_back(g.forward(a_probs).to_vector());
+    const auto a_probs = model.decode_atten(prev);
+    ret.atten_probs.emplace_back(a_probs.to_vector());
 
-    const auto scores = model.decode_word(a_probs, false);
-    ret.word_ids.emplace_back(::argmax(g.forward(scores).to_vector()));
+    const auto scores = model.decode_word(a_probs);
+    ret.word_ids.emplace_back(::argmax(scores.to_vector()));
 
     if (ret.word_ids.size() == limit + 1) {
       ret.word_ids.emplace_back(eos_id);
@@ -50,47 +49,45 @@ inline ::Result infer_sentence(
 
   return ret;
 }
-*/
 
-/*
+template<typename Var>
 inline ::Result infer_sentence_ensemble(
     std::vector<std::unique_ptr<primitiv::Device>> &devs,
-    std::vector<std::unique_ptr<::FixedLengthDecoder>> &models,
+    std::vector<std::unique_ptr<::EncoderDecoder<Var>>> &models,
     unsigned bos_id, unsigned eos_id,
     const std::vector<std::vector<unsigned>> &src_batch,
     unsigned limit) {
-  namespace F = primitiv::node_ops;
+  namespace F = primitiv::functions;
 
   // Initialize the model
-  primitiv::Graph g;
-  primitiv::Graph::set_default_graph(g);
   for (unsigned i = 0; i < models.size(); ++i) {
-    primitiv::Device::set_default_device(*devs[i % devs.size()]);
-    models[i]->encode(src_batch, false);
+    primitiv::Device::set_default(*devs[i % devs.size()]);
+    models[i]->encode(src_batch);
+    models[i]->init_decoder();
   }
 
   ::Result ret { {bos_id}, {} };
 
   // Decode
   while (ret.word_ids.back() != eos_id) {
-    std::vector<primitiv::Node> a_probs_list;
-    std::vector<primitiv::Node> scores_list;
+    std::vector<Var> a_probs_list;
+    std::vector<Var> scores_list;
     const std::vector<unsigned> prev {ret.word_ids.back()};
 
     for (unsigned i = 0; i < models.size(); ++i) {
-      primitiv::Device::set_default_device(*devs[i % devs.size()]);
-      const auto a_probs = models[i]->decode_atten(prev, false);
+      primitiv::Device::set_default(*devs[i % devs.size()]);
+      const auto a_probs = models[i]->decode_atten(prev);
       a_probs_list.emplace_back(F::copy(a_probs, *devs[0]));
 
-      const auto scores = models[i]->decode_word(a_probs, false);
+      const auto scores = models[i]->decode_word(a_probs);
       scores_list.emplace_back(F::copy(scores, *devs[0]));
     }
 
     const auto a_probs_mean = F::mean(a_probs_list);
     const auto scores_sum = F::sum(scores_list);
 
-    ret.atten_probs.emplace_back(g.forward(a_probs_mean).to_vector());
-    ret.word_ids.emplace_back(::argmax(g.forward(scores_sum).to_vector()));
+    ret.atten_probs.emplace_back(a_probs_mean.to_vector());
+    ret.word_ids.emplace_back(::argmax(scores_sum.to_vector()));
 
     if (ret.word_ids.size() == limit + 1) {
       ret.word_ids.emplace_back(eos_id);
@@ -100,9 +97,7 @@ inline ::Result infer_sentence_ensemble(
 
   return ret;
 }
-*/
 
-/*
 inline std::string make_hyp_str(
     const ::Result &ret, const ::Vocabulary &trg_vocab) {
   std::string hyp_str;
@@ -112,14 +107,13 @@ inline std::string make_hyp_str(
   }
   return hyp_str;
 }
- */
 
-class FLDTrainer {
+class NMTTrainer {
   const std::string model_dir_;
   const ::Vocabulary &src_vocab_;
   const ::Vocabulary &trg_vocab_;
-  ::FixedLengthDecoder<primitiv::Node> &model_;
-  primitiv::Trainer &opt_;
+  ::EncoderDecoder<primitiv::Node> &model_;
+  primitiv::Optimizer &opt_;
   ::Sampler &train_sampler_;
   ::Sampler &dev_sampler_;
   unsigned epoch_;
@@ -137,9 +131,10 @@ class FLDTrainer {
       const unsigned batch_size = batch.source[0].size();
 
       primitiv::Graph g;
-      primitiv::Graph::set_default_graph(g);
-      model_.encode(batch.source, train);
-      const auto loss = model_.loss(batch.target, train);
+      primitiv::Graph::set_default(g);
+      model_.encode(batch.source);
+      model_.init_decoder();
+      const auto loss = model_.loss(batch.target);
       accum_loss += g.forward(loss).to_vector()[0] * batch_size;
 
       if (train) {
@@ -156,7 +151,6 @@ class FLDTrainer {
     return accum_loss / num_labels;
   }
 
-  /*
   std::vector<std::string> infer_corpus(::Sampler &sampler) {
     std::vector<std::string> hyps;
     sampler.reset();
@@ -172,6 +166,8 @@ class FLDTrainer {
             "inference is allowed only for each one sentence.");
       }
 
+      primitiv::Graph g;
+      primitiv::Graph::set_default(g);
       const ::Result ret = ::infer_sentence(
           model_, bos_id, eos_id, batch.source, 64);
       hyps.emplace_back(::make_hyp_str(ret, trg_vocab_));
@@ -179,15 +175,14 @@ class FLDTrainer {
 
     return hyps;
   }
-  */
 
 public:
-  FLDTrainer(
+  NMTTrainer(
       const std::string &model_dir,
       const ::Vocabulary &src_vocab,
       const ::Vocabulary &trg_vocab,
-      ::FixedLengthDecoder<primitiv::Node> &model,
-      primitiv::Trainer &trainer,
+      ::EncoderDecoder<primitiv::Node> &model,
+      primitiv::Optimizer &trainer,
       ::Sampler &train_sampler,
       ::Sampler &dev_sampler,
       unsigned epoch)
@@ -204,7 +199,7 @@ public:
       const std::vector<std::string> &dev_hyps) {
     const std::string subdir = ::get_model_dir(model_dir_, epoch_);
     ::make_directory(subdir);
-    model_.save(subdir + "/model.");
+    model_.save(subdir + "/model");
     opt_.save(subdir + "/trainer");
     ::save_value(subdir + "/train.avg_loss", train_avg_loss);
     ::save_value(subdir + "/dev.avg_loss", dev_avg_loss);
@@ -232,12 +227,9 @@ public:
       opt_.set_learning_rate_scaling(.5f * prev_lr_decay);
     }
 
-    /*
     std::cout << "  Generating dev hyps ... " << std::flush;
     const std::vector<std::string> dev_hyps = infer_corpus(dev_sampler_);
     std::cout << "done." << std::endl;
-    */
-    const std::vector<std::string> dev_hyps(dev_sampler_.num_sentences());
 
     std::cout << "  Saving current model ... " << std::flush;
     save(train_avg_loss, dev_avg_loss, dev_hyps);
@@ -245,4 +237,4 @@ public:
   }
 };
 
-#endif  // MYMT_FLD_UTILS_H_
+#endif  // PRIMITIV_NMT_NMT_UTILS_H_

@@ -6,11 +6,11 @@
 #include <string>
 
 #include <primitiv/primitiv.h>
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
 #include <primitiv/primitiv_cuda.h>
 #endif
 
-#include "attention_encoder_decoder.h"
+#include "encoder_decoder.h"
 #include "nmt_utils.h"
 #include "utils.h"
 #include "vocabulary.h"
@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
       "(file/in) Target vocabulary file",
       "(dir/in) Model directories (colon-separated)",
       "(int) Epochs (colon-separated)",
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
       "(int) GPU IDs (colon-separated)",
 #endif
   });
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
       const std::vector<std::string> epoch_strs = ::split(*++argv, ':');
       std::vector<unsigned> epochs;
       for (const auto &s : epoch_strs) epochs.emplace_back(std::stoi(s));
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
       const std::vector<std::string> gpu_ids_strs = ::split(*++argv, ':');
       std::vector<unsigned> gpu_ids;
       for (const auto &s : gpu_ids_strs) gpu_ids.emplace_back(std::stoi(s));
@@ -56,21 +56,24 @@ int main(int argc, char *argv[]) {
       const unsigned eos_id = trg_vocab.stoi("<eos>");
 
       std::vector<std::unique_ptr<primitiv::Device>> devs;
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
       for (unsigned gpu_id : gpu_ids) {
         devs.emplace_back(std::unique_ptr<primitiv::Device>(
-              new primitiv::CUDADevice(gpu_id)));
+              new primitiv::devices::CUDA(gpu_id)));
       }
 #else
       devs.emplace_back(std::unique_ptr<primitiv::Device>(
-            new primitiv::CPUDevice()));
+            new primitiv::devices::Eigen()));
 #endif
 
-      std::vector<std::unique_ptr<::AttentionEncoderDecoder<primitiv::Tensor>>> models;
+      std::vector<std::unique_ptr<::EncoderDecoder<primitiv::Tensor>>>
+        models;
       for (unsigned i = 0; i < subdirs.size(); ++i) {
-        primitiv::Device::set_default_device(*devs[i % devs.size()]);
-        models.emplace_back(std::unique_ptr<::AttentionEncoderDecoder<primitiv::Tensor>>(
-              new AttentionEncoderDecoder<primitiv::Tensor>("encdec", subdirs[i] + "/model.")));
+        primitiv::Device::set_default(*devs[i % devs.size()]);
+        models.emplace_back(
+            std::unique_ptr<::EncoderDecoder<primitiv::Tensor>>(
+              new EncoderDecoder<primitiv::Tensor>()));
+        models.back()->load(subdirs[i] + "/model");
       }
 
       std::string line;

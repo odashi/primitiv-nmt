@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
 
-project(mymt VERSION 0.0.1 LANGUAGES CXX)
+project(primitiv-nmt VERSION 0.0.1 LANGUAGES CXX)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-option(MYMT_USE_CUDA "Whether or not to use CUDA." OFF)
+option(PRIMITIV_NMT_USE_CUDA "Whether or not to use CUDA." OFF)
 
 find_package(Protobuf REQUIRED)
 find_package(Primitiv REQUIRED)
@@ -26,4 +26,4 @@ include_directories(
   ${PRIMITIV_INCLUDE_DIR}
 )
 
-add_subdirectory(mymt)
+add_subdirectory(primitiv_nmt)

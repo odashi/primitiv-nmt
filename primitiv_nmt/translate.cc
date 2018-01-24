@@ -5,11 +5,11 @@
 #include <string>
 
 #include <primitiv/primitiv.h>
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
 #include <primitiv/primitiv_cuda.h>
 #endif
 
-#include "attention_encoder_decoder.h"
+#include "encoder_decoder.h"
 #include "nmt_utils.h"
 #include "utils.h"
 #include "vocabulary.h"
@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
       "(file/in) Target vocabulary file",
       "(dir/in) Model directory",
       "(int) Epoch",
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
       "(int) GPU ID",
 #endif
   });
@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
       const std::string trg_vocab_file = *++argv;
       const std::string model_dir = *++argv;
       const unsigned epoch = std::stoi(*++argv);
-#ifdef MYMT_USE_CUDA
+#ifdef PRIMITIV_NMT_USE_CUDA
       const unsigned gpu_id = std::stoi(*++argv);
 #endif
 
@@ -41,15 +41,15 @@ int main(int argc, char *argv[]) {
       const unsigned bos_id = trg_vocab.stoi("<bos>");
       const unsigned eos_id = trg_vocab.stoi("<eos>");
 
-#ifdef MYMT_USE_CUDA
-      primitiv::CUDADevice dev(gpu_id);
+#ifdef PRIMITIV_NMT_USE_CUDA
+      primitiv::devices::CUDA dev(gpu_id);
 #else
-      primitiv::CPUDevice dev;
+      primitiv::devices::Eigen dev;
 #endif
-      primitiv::Device::set_default_device(dev);
+      primitiv::Device::set_default(dev);
 
-      ::AttentionEncoderDecoder<primitiv::Tensor> model(
-          "encdec", subdir + "/model.");
+      ::EncoderDecoder<primitiv::Tensor> model;
+      model.load(subdir + "/model");
 
       std::string line;
 

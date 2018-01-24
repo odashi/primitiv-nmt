@@ -1,5 +1,5 @@
-#ifndef MYMT_UTILS_H_
-#define MYMT_UTILS_H_
+#ifndef PRIMITIV_NMT_UTILS_H_
+#define PRIMITIV_NMT_UTILS_H_
 
 #include <cctype>
 #include <cerrno>
@@ -158,4 +158,4 @@ inline std::string get_model_dir(const std::string &prefix, unsigned epoch) {
   return prefix + '/' + buf;
 }
 
-#endif  // MYMT_UTILS_H_
+#endif  // PRIMITIV_NMT_UTILS_H_
