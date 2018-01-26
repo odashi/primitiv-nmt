@@ -6,9 +6,6 @@
 #include <vector>
 
 #include <primitiv/primitiv.h>
-#ifdef PRIMITIV_NMT_USE_CUDA
-#include <primitiv/primitiv_cuda.h>
-#endif
 
 #include "encoder_decoder.h"
 #include "nmt_utils.h"

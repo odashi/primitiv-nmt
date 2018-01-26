@@ -6,9 +6,6 @@
 #include <string>
 
 #include <primitiv/primitiv.h>
-#ifdef PRIMITIV_NMT_USE_CUDA
-#include <primitiv/primitiv_cuda.h>
-#endif
 
 #include "encoder_decoder.h"
 #include "nmt_utils.h"
@@ -96,6 +93,7 @@ int main(int argc, char *argv[]) {
             devs, models, bos_id, eos_id, src_batch, 64);
         const std::string hyp_str = ::make_hyp_str(ret, trg_vocab);
 
+        /*
         for (unsigned i = 0; i < ret.atten_probs.size(); ++i) {
           std::cout << "a" << (i + 1) << "\t[";
           for (float ap : ret.atten_probs[i]) {
@@ -104,7 +102,8 @@ int main(int argc, char *argv[]) {
           }
           std::cout << " ]" << std::endl;
         }
-        std::cout << "h\t" << hyp_str << std::endl;
+        */
+        std::cout /* << "h\t" */ << hyp_str << std::endl;
       }
   });
 

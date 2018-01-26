@@ -2,6 +2,7 @@ build
 data
 model
 test
+sample
 
 a.out
 *.pb.*
