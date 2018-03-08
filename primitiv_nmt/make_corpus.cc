@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "primitiv_nmt.pb.h"
-#include "utils.h"
-#include "vocabulary.h"
+#include <primitiv_nmt/primitiv_nmt.pb.h>
+#include <primitiv_nmt/utils.h>
+#include <primitiv_nmt/vocabulary.h>
 
 using namespace std;
 

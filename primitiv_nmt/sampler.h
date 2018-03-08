@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "primitiv_nmt.pb.h"
+#include <primitiv_nmt/primitiv_nmt.pb.h>
 
 struct Batch {
   std::vector<std::vector<unsigned>> source;

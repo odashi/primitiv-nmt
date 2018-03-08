@@ -1,4 +1,4 @@
-#include "config.h"
+#include <primitiv_nmt/config.h>
 
 #include <cstdio>
 #include <iostream>
@@ -6,10 +6,10 @@
 
 #include <primitiv/primitiv.h>
 
-#include "encoder_decoder.h"
-#include "nmt_utils.h"
-#include "utils.h"
-#include "vocabulary.h"
+#include <primitiv_nmt/encoder_decoder.h>
+#include <primitiv_nmt/nmt_utils.h>
+#include <primitiv_nmt/utils.h>
+#include <primitiv_nmt/vocabulary.h>
 
 int main(int argc, char *argv[]) {
   ::check_args(argc, argv, {

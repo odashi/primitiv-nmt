@@ -8,10 +8,10 @@
 
 #include <primitiv/primitiv.h>
 
-#include "affine.h"
-#include "attention.h"
-#include "lstm.h"
-#include "utils.h"
+#include <primitiv_nmt/affine.h>
+#include <primitiv_nmt/attention.h>
+#include <primitiv_nmt/lstm.h>
+#include <primitiv_nmt/utils.h>
 
 template<typename Var>
 class EncoderDecoder : public primitiv::Model {

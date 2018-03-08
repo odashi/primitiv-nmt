@@ -7,7 +7,7 @@
 
 #include <primitiv/primitiv.h>
 
-#include "utils.h"
+#include <primitiv_nmt/utils.h>
 
 // Multilayer perceptron-based attention
 template<typename Var>

@@ -6,8 +6,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "primitiv_nmt.pb.h"
-#include "utils.h"
+#include <primitiv_nmt/primitiv_nmt.pb.h>
+#include <primitiv_nmt/utils.h>
 
 using namespace std;
 

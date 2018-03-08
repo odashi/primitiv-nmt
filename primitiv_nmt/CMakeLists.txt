@@ -1,3 +1,8 @@
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/config.h
+)
+
 protobuf_generate_cpp(
   primitiv_nmt_proto_SRCS primitiv_nmt_proto_HDRS primitiv_nmt.proto)
 

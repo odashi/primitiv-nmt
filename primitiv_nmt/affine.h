@@ -6,7 +6,7 @@
 
 #include <primitiv/primitiv.h>
 
-#include "utils.h"
+#include <primitiv_nmt/utils.h>
 
 // Affine transform
 template<typename Var>

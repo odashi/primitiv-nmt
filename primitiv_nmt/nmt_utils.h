@@ -8,10 +8,10 @@
 
 #include <primitiv/primitiv.h>
 
-#include "encoder_decoder.h"
-#include "sampler.h"
-#include "utils.h"
-#include "vocabulary.h"
+#include <primitiv_nmt/encoder_decoder.h>
+#include <primitiv_nmt/sampler.h>
+#include <primitiv_nmt/utils.h>
+#include <primitiv_nmt/vocabulary.h>
 
 struct Result {
   std::vector<unsigned> word_ids;

@@ -7,7 +7,7 @@
 
 #include <primitiv/primitiv.h>
 
-#include "utils.h"
+#include <primitiv_nmt/utils.h>
 
 // Hand-written LSTM with input/forget/output gates and no peepholes.
 // Formulation:

@@ -9,8 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "primitiv_nmt.pb.h"
-#include "utils.h"
+#include <primitiv_nmt/primitiv_nmt.pb.h>
+#include <primitiv_nmt/utils.h>
 
 class Vocabulary {
   std::unordered_map<std::string, unsigned> stoi_;
